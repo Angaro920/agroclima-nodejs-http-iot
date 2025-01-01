@@ -3,7 +3,7 @@ const http = require('http');
 const {MongoClient} = require('mongodb');
 
 
-const mongoURL = "mongodb://localhost:27017/sensores";
+const mongoURL = "mongodb://127.0.0.1:27017/sensores";
 const dbName = "sensores";
 const collectionTemp = "Temperatura";
 const collectionHum = "Humedad";
