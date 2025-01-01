@@ -1,2 +1,2 @@
-# IOT-websocket-ESP32
+# IOT-websocket-NodeJS
 Proyecto final
