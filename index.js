@@ -2,15 +2,17 @@ import express from "express"
 import mongoose from "mongoose"
 import bodyParser from "body-parser"
 import dotenv from "dotenv"
-import routes from "./routes/userRoute.js"
+import routes from "./routes/Routes.js"
 import cors from "cors"
 import { WebSocketServer } from "ws"; // Importar el constructor de WebSocketServer
 import http from "http";
 import { MongoClient } from "mongodb";
+import cookieParser from "cookie-parser";
 
 
 const app = express();
 app.use(bodyParser.json());
+app.use(cookieParser());
 app.use(cors());
 dotenv.config();
 
@@ -63,10 +65,10 @@ MongoClient.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true 
 
           // Guardar datos en las colecciones correspondientes
           const operations = [
-            collectionT.insertOne({ temperatura: data.temperatura, timestamp: new Date() }),
-            collectionHu.insertOne({ humedad: data.humedad, timestamp: new Date() }),
-            collectionHi.insertOne({ hidrogeno: data.hidrogeno, timestamp: new Date() }),
-            collectionL.insertOne({ luz: data.luz, timestamp: new Date() }),
+            collectionT.insertOne({ data: data.temperatura, time: new Date() }),
+            collectionHu.insertOne({ data: data.humedad, time: new Date() }),
+            collectionHi.insertOne({ data: data.hidrogeno, time: new Date() }),
+            collectionL.insertOne({ data: data.luz, time: new Date() }),
           ];
 
           Promise.all(operations)
