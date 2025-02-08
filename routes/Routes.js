@@ -1,7 +1,7 @@
 import express from "express"
 import { create, deleteUser, list, listID, login,logout, updateUser, getUser} from "../controller/userController.js"
 import { listTemperatura, listHumedad, listGas, listLuz } from "../controller/dataController.js"
-import authMiddleware from "../middleware/authMiddleware.js"
+import authMiddleware from "../middleware/authmiddleware.js"
 const routes = express.Router();
 
 routes.post ("/addUser",create)

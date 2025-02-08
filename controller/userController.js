@@ -25,7 +25,7 @@ export const login = async (req, res) => {
         };
         jwt.sign(payload, 'secret', { expiresIn: 3600 }, (err, token) => {
             if (err) throw err;
-            res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'strict' });
+            res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'strict', path: '/' });
             res.json({ msg: 'Inicio de sesión exitoso' });
         });
     } catch (err) {
@@ -48,9 +48,22 @@ export const getUser = async (req, res) => {
     }
 };
 export const logout = async (req, res) => {
-    // Elimina la cookie del token
-    res.clearCookie('token');
-    res.json({ msg: 'Sesión cerrada' });
+    try {
+        console.log("Cookies antes de eliminar:", req.cookies); // Ver qué cookies hay
+        res.setHeader("Set-Cookie", "token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict");
+        res.clearCookie("token", { 
+            httpOnly: true, 
+            secure: false, 
+            sameSite: "strict", 
+            path: "/" 
+        });
+
+        console.log("Cookies después de eliminar:", req.cookies); // Ver si cambian
+        res.json({ msg: "Sesión cerrada" });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Error en el servidor");
+    }
 };
 
 export const create = async (req, res) => {

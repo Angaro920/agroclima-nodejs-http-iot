@@ -9,11 +9,15 @@ import http from "http";
 import { MongoClient } from "mongodb";
 import cookieParser from "cookie-parser";
 
+const corsOptions = {
+  origin: "http://localhost:5173", // Especifica el origen permitido
+  credentials: true, // Habilita el envío de cookies
+};
 
 const app = express();
 app.use(bodyParser.json());
 app.use(cookieParser());
-app.use(cors());
+app.use(cors(corsOptions));
 dotenv.config();
 
 const PORT = process.env.PORT || 7000;
