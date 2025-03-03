@@ -47,7 +47,7 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server });
-MongoClient.connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
+MongoClient.connect(mongoURL)
   .then((client) => {
     console.log("Conectado a MongoDB");
 
