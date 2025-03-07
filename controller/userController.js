@@ -49,7 +49,7 @@ export const getUser = async (req, res) => {
 };
 export const logout = async (req, res) => {
     try {
-        console.log("Cookies antes de eliminar:", req.cookies); // Ver qué cookies hay
+        //console.log("Cookies antes de eliminar:", req.cookies); // Ver qué cookies hay
         res.setHeader("Set-Cookie", "token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict");
         res.clearCookie("token", { 
             httpOnly: true, 
@@ -58,7 +58,7 @@ export const logout = async (req, res) => {
             path: "/" 
         });
 
-        console.log("Cookies después de eliminar:", req.cookies); // Ver si cambian
+        //console.log("Cookies después de eliminar:", req.cookies); // Ver si cambian
         res.json({ msg: "Sesión cerrada" });
     } catch (err) {
         console.error(err.message);

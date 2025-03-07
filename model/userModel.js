@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 
 const userSchema = new mongoose.Schema({
+    documento:{
+        type: String,
+        require: true,
+    },
     userName:{
         type:String,
         require: true,
@@ -14,7 +18,7 @@ const userSchema = new mongoose.Schema({
         type:String,
         require: true,
     },
-    lastName:{
+    email:{
         type:String,
         require: true,
     },

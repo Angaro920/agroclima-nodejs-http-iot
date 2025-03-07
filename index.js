@@ -20,10 +20,9 @@ app.use(cookieParser());
 app.use(cors(corsOptions));
 dotenv.config();
 
-const PORT = process.env.PORT || 7000;
-const MONGOURL = process.env.MONGO_URL;
+const PORT = 8000;
 
-const mongoURL = "mongodb://127.0.0.1:27017";
+const mongoURL = "mongodb://127.0.0.1:27017/AgroclimaAi";
 const dbName = "AgroclimaAi";
 const collectionTemp = "Temperatura";
 const collectionHum = "Humedad";
@@ -31,7 +30,7 @@ const collectionHid = "Hidrogeno";
 const collectionLu = "Luz";
 
 
-mongoose.connect(MONGOURL).then(() => {
+mongoose.connect(mongoURL).then(() => {
     console.log("Conectado a la base de datos")
     app.listen(PORT, () => {
         console.log(`Servidor HTTP corriendo en el puerto : ${PORT}`);
