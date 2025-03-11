@@ -4,14 +4,16 @@ import bodyParser from "body-parser"
 import dotenv from "dotenv"
 import routes from "./routes/Routes.js"
 import cors from "cors"
-import { WebSocketServer } from "ws"; // Importar el constructor de WebSocketServer
+import { WebSocketServer } from "ws";
 import http from "http";
 import { MongoClient } from "mongodb";
 import cookieParser from "cookie-parser";
+import { formatInTimeZone } from "date-fns-tz"
+
 
 const corsOptions = {
-  origin: "http://localhost:5173", // Especifica el origen permitido
-  credentials: true, // Habilita el envío de cookies
+  origin: "http://localhost:5173", 
+  credentials: true,
 };
 
 const app = express();
@@ -45,6 +47,12 @@ const server = http.createServer((req, res) => {
     res.end("<h1>Servidor WebSocket para DHT22</h1>");
 });
 
+/* function horaActual (){
+  const ahora = new Date();
+  const dateFormat =  formatInTimeZone(ahora, "America/Bogota", "yyyy-MM-dd'T'HH:mm:ss");
+  return dateFormat;
+} */
+
 const wss = new WebSocketServer({ server });
 MongoClient.connect(mongoURL)
   .then((client) => {
@@ -68,10 +76,10 @@ MongoClient.connect(mongoURL)
 
           // Guardar datos en las colecciones correspondientes
           const operations = [
-            collectionT.insertOne({ data: data.temperatura, time: new Date() }),
+            collectionT.insertOne({ data: data.temperatura, time: new Date()}),
             collectionHu.insertOne({ data: data.humedad, time: new Date() }),
-            collectionHi.insertOne({ data: data.hidrogeno, time: new Date() }),
-            collectionL.insertOne({ data: data.luz, time: new Date() }),
+            collectionHi.insertOne({ data: data.hidrogeno, time: new Date()}),
+            collectionL.insertOne({ data: data.luz, time: new Date()}),
           ];
 
           Promise.all(operations)

@@ -6,59 +6,130 @@ import PDFDocument from "pdfkit";
 import dotenv from "dotenv";
 
 dotenv.config();
-const mongoURL = process.env.MONGO_URL;
+const mongoURL = "mongodb://localhost:27017/";
 const dbName = "AgroclimaAi";
 
-export const listTemperatura = async (req, res) => {
+export const listData = async (req, res) => {
+    const { collectionName } = req.params;
     try {
-        const temperaturas = await Temperatura.find().sort({ time: -1 });
-        if (temperaturas.length === 0) {
-            return res.status(404).json({ message: "No se encontraron datos de temperatura." });
+        const client = await MongoClient.connect(mongoURL);
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+        const data = await collection.find().sort({ time: -1 }).toArray();
+
+        if (data.length === 0) {
+            return res.status(404).json({ message: "No se encontraron datos." });
         }
-        res.status(200).json(temperaturas);
+        res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ message: "Error al obtener los datos", error: error.message });
     }
-};
+}
 
-
-export const listHumedad = async (req, res) => {
+export const dataDia = async (req, res) => {
+    const { collectionName } = req.params;
     try {
-        const Humedads = await Humedad.find().sort({ time: -1 });
-        if (Humedads.length === 0) {
-            return res.status(404).json({ message: "No se encontraron datos de Humedad." });
-        }
-        res.status(200).json(Humedads);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener los datos", error: error.message });
+        const client = await MongoClient.connect(mongoURL);
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+        const pipeline = [
+                {
+                  $match: {
+                    time: { $gte: new Date(new Date().getTime() - 24*60*60*1000) }
+                  }
+                },
+                {
+                  $group: {
+                    _id: {
+                      $dateTrunc: { date: "$time", unit: "hour" }  
+                    },
+                    promedio: { $avg: "$data" },
+                  }
+                },
+                {
+                  $sort: { "_id": 1 }
+                }
+        ];
+        const data = await collection.aggregate(pipeline).toArray();
+        if (data.length === 0) {
+            return res.status(404).json({ message: "No se encontraron datos." });
+        }res.status(200).json(data);
+    } catch (e) {
+        return res.status(500).json({ message: "Error al obtener los datos", error: e.message });
     }
-};
+}
 
-export const listGas = async (req, res) => {
+export const dataSemana = async (req, res) => {
+    const { collectionName } = req.params;
     try {
-        const Gases = await Gas.find().sort({ time: -1 });
-        if (Gases.length === 0) {
-            return res.status(404).json({ message: "No se encontraron datos de Gases." });
+        const client = await MongoClient.connect(mongoURL);
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+        const pipeline = [
+            {
+                $match: {
+                  time: { 
+                    $gte: new Date(new Date().setDate(new Date().getDate() - 7)) 
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: { 
+                    $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$time" } }
+                  },
+                  promedio: { $avg: "$data" }
+                }
+              },
+              {
+                $sort: { "_id": 1 } // Ordenar por fecha ascendente
+              } 
+        ]
+        const data = await collection.aggregate(pipeline).toArray();
+        if (data.length === 0) {
+            return res.status(404).json({ message: "No se encontraron datos." });
         }
-        res.status(200).json(Gases);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener los datos", error: error.message });
+        res.status(200).json(data);
+    }catch (e) {
+        return res.status(500).json({ message: "Error al obtener los datos", error: e.message });
     }
-};
-
-export const listLuz = async (req, res) => {
+}
+export const dataMes = async (req, res) => {
+    const { collectionName } = req.params;
     try {
-        const luces = await Luz.find().sort({ time: -1 });
-        if (luces.length === 0) {
-            return res.status(404).json({ message: "No se encontraron datos de Luz." });
+        const client = await MongoClient.connect(mongoURL);
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+        const pipeline = [
+            {
+                $match: {
+                  time: { 
+                    $gte: new Date(new Date().setDate(new Date().getDate() - 30)) 
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: { 
+                    $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$time" } }
+                  },
+                  promedio: { $avg: "$data" }
+                }
+              },
+              {
+                $sort: { "_id": 1 }
+              } 
+        ]
+        const data = await collection.aggregate(pipeline).toArray();
+        if (data.length === 0) {
+            return res.status(404).json({ message: "No se encontraron datos." });
         }
-        res.status(200).json(luces);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener los datos", error: error.message });
+        res.status(200).json(data);
+    }catch (e) {
+        return res.status(500).json({ message: "Error al obtener los datos", error: e.message });
     }
-};
-
-export const obtenerultimosDatos = async (req, res) => {
+}
+/* export const obtenerultimosDatos = async (req, res) => {
     try {
         const registrosTemperatura = await Temperatura.find()
             .sort({ time: -1 })
@@ -82,7 +153,7 @@ export const obtenerultimosDatos = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Error al obtener los datos", error });
     }
-}
+} */
 export const reporteCSV = async (req, res) => {
     const { collectionName } = req.params;
     const { startDate, endDate } = req.query;
@@ -193,7 +264,7 @@ export const reporteXSLM = async (req, res) => {
     }
 
 }
-export const reportePDF = async (req, res) => {
+/* export const reportePDF = async (req, res) => {
     const { collectionName } = req.params;
     const { startDate, endDate } = req.query;
 
@@ -250,4 +321,4 @@ export const reportePDF = async (req, res) => {
         console.error("❌ Error exportando PDF:", error);
         res.status(500).json({ error: "Error al exportar datos" });
     }
-};
+}; */
