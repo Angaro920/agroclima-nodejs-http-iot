@@ -129,31 +129,6 @@ export const dataMes = async (req, res) => {
         return res.status(500).json({ message: "Error al obtener los datos", error: e.message });
     }
 }
-/* export const obtenerultimosDatos = async (req, res) => {
-    try {
-        const registrosTemperatura = await Temperatura.find()
-            .sort({ time: -1 })
-            .limit(50);
-        const registrosHumedad = await Humedad.find()
-            .sort({ time: -1 })
-            .limit(50);
-        const registrosGas = await Gas.find()
-            .sort({ time: -1 })
-            .limit(50);
-        const registrosLuz = await Luz.find()
-            .sort({ time: -1 })
-            .limit(50);
-        const response = {
-            Temperatura: registrosTemperatura,
-            Humedad: registrosHumedad,
-            Gas: registrosGas,
-            Luz: registrosLuz,
-        }
-        res.json(response);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener los datos", error });
-    }
-} */
 export const reporteCSV = async (req, res) => {
     const { collectionName } = req.params;
     const { startDate, endDate } = req.query;
