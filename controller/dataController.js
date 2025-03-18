@@ -239,7 +239,7 @@ export const reporteXSLM = async (req, res) => {
     }
 
 }
-/* export const reportePDF = async (req, res) => {
+export const reportePDF = async (req, res) => {
     const { collectionName } = req.params;
     const { startDate, endDate } = req.query;
 
@@ -296,4 +296,4 @@ export const reporteXSLM = async (req, res) => {
         console.error("❌ Error exportando PDF:", error);
         res.status(500).json({ error: "Error al exportar datos" });
     }
-}; */
+}; 
