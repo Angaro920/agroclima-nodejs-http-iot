@@ -9,6 +9,8 @@ import http from "http";
 import { MongoClient } from "mongodb";
 import cookieParser from "cookie-parser";
 import { formatInTimeZone } from "date-fns-tz"
+import axios from 'axios';
+
 
 
 const corsOptions = {
@@ -93,7 +95,10 @@ MongoClient.connect(mongoURL)
           // Enviar los datos recibidos a todos los clientes conectados
           wss.clients.forEach((client) => {
             if (client.readyState === socket.OPEN) {
-              client.send(messageStr); // Enviar la cadena JSON limpia
+              // client.send(messageStr); // Enviar la cadena JSON limpia
+              const sensorPayload = JSON.stringify({ type: 'sensor', data: data });
+              client.send(sensorPayload);
+
             }
           });
         } catch (error) {
@@ -105,6 +110,38 @@ MongoClient.connect(mongoURL)
         console.log("Cliente desconectado");
       });
     });
+
+    const fetchAndBroadcastAmbientData = async () => {
+      try {
+        const response = await axios.get('https://api.ambientweather.net/v1/devices', {
+          params: {
+            apiKey: process.env.AMBIENT_API_KEY,
+            applicationKey: process.env.AMBIENT_APP_KEY
+          }
+        });
+    
+        const ambientData = response.data[0]?.lastData;
+    
+        if (ambientData) {
+          const payload = JSON.stringify({ type: 'ambient', data: ambientData });
+    
+          // Send to all connected clients
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(payload);
+            }
+          });
+    
+          console.log("Ambient data broadcasted:", ambientData);
+        }
+      } catch (error) {
+        console.error("Error fetching Ambient Weather data:", error.message);
+      }
+    };
+    
+    // Fetch every 60 seconds
+    setInterval(fetchAndBroadcastAmbientData, 60000);
+    
 
     server.listen(8080, () => {
       console.log("Servidor WebSocket corriendo en ws://localhost:8080");
