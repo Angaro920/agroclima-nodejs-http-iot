@@ -28,6 +28,13 @@ const PORT = 8000;
 
 const mongoURL = "mongodb://127.0.0.1:27017/AgroclimaAi";
 const dbName = "AgroclimaAi";
+const collectionTemp = "Temperatura";
+const collectionHum = "Humedad";
+const collectionHid = "Hidrogeno";
+const collectionLu = "Luz";
+const collectionTempStationIn = "temperaturaInterna";
+const collectionHumStationIn = "humedadInterna";
+
 
 
 mongoose.connect(mongoURL).then(() => {
@@ -45,6 +52,11 @@ const server = http.createServer((req, res) => {
     res.end("<h1>Servidor WebSocket para DHT22</h1>");
 });
 
+/* function horaActual (){
+  const ahora = new Date();
+  const dateFormat =  formatInTimeZone(ahora, "America/Bogota", "yyyy-MM-dd'T'HH:mm:ss");
+  return dateFormat;
+} */
 
 const wss = new WebSocketServer({ server });
 MongoClient.connect(mongoURL)
@@ -52,11 +64,13 @@ MongoClient.connect(mongoURL)
     console.log("Conectado a MongoDB");
 
     const db = client.db(dbName);
-    const collectionT = db.collection("Temperatura");
-    const collectionHu = db.collection("Humedad");
-    const collectionHi = db.collection("Hidrogeno");
-    const collectionL = db.collection("Luz");
-    const collectionBarom = db.collection("Barometro");
+    const collectionT = db.collection(collectionTemp);
+    const collectionHu = db.collection(collectionHum);
+    const collectionHi = db.collection(collectionHid);
+    const collectionL = db.collection(collectionLu);
+    const collectionTStationIn = db.collection(collectionTempStationIn);
+    const collectionHStationIn = db.collection(collectionHumStationIn);
+
 
     wss.on("connection", (socket) => {
       console.log("Cliente conectado");
@@ -67,15 +81,14 @@ MongoClient.connect(mongoURL)
 
         try {
           const data = JSON.parse(messageStr);
-
-          // Guardar datos en las colecciones correspondientes
+      
           const operations = [
-            collectionT.insertOne({ data: data.temperatura, time: new Date()}),
+            collectionT.insertOne({ data: data.temperatura, time: new Date() }),
             collectionHu.insertOne({ data: data.humedad, time: new Date() }),
-            collectionHi.insertOne({ data: data.hidrogeno, time: new Date()}),
-            collectionL.insertOne({ data: data.luz, time: new Date()}),
+            collectionHi.insertOne({ data: data.hidrogeno, time: new Date() }),
+            collectionL.insertOne({ data: data.luz, time: new Date() }),
           ];
-
+      
           Promise.all(operations)
             .then(() => {
               console.log("Datos guardados correctamente en MongoDB");
@@ -83,14 +96,12 @@ MongoClient.connect(mongoURL)
             .catch((error) => {
               console.error("Error al guardar datos en MongoDB: ", error);
             });
-
-          // Enviar los datos recibidos a todos los clientes conectados
+      
+          // Send to all connected clients
           wss.clients.forEach((client) => {
             if (client.readyState === socket.OPEN) {
-              // client.send(messageStr); // Enviar la cadena JSON limpia
               const sensorPayload = JSON.stringify({ type: 'sensor', data: data });
               client.send(sensorPayload);
-
             }
           });
         } catch (error) {
@@ -113,21 +124,22 @@ MongoClient.connect(mongoURL)
         });
     
         const ambientData = response.data[0]?.lastData;
+
+        if (ambientData?.tempinf !== undefined) {
+          ambientData.tempinfC = ((ambientData.tempinf - 32) * 5 / 9).toFixed(2); // Keep 2 decimals
+        }
+        
     
         if (ambientData) {
-          const payload = JSON.stringify({ type: 'ambient', data: ambientData });
-          
-          const operations = [
-            collectionBarom.insertOne({ data: ambientData.baromabsin, time: new Date()}),
-          ];
-
-          Promise.all(operations)
-            .then(() => {
-              console.log("Datos guardados correctamente en MongoDB");
-            })
-            .catch((error) => {
-              console.error("Error al guardar datos en MongoDB: ", error);
-            });
+          const payload = JSON.stringify({ 
+            type: 'ambient', 
+            data:{ 
+              ...ambientData, 
+              tempinf: parseFloat(ambientData.tempinfC) 
+            }
+          });
+    
+          // Send to all connected clients
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(payload);
@@ -135,12 +147,35 @@ MongoClient.connect(mongoURL)
           });
     
           console.log("Ambient data broadcasted:", ambientData);
+
+          const saveOperations = [];
+
+          if(ambientData.tempinfC !== undefined) {
+            saveOperations.push(
+              collectionTStationIn.insertOne({ data: ambientData.tempinfC, time: new Date() })
+            );
         }
+        if (ambientData.humidityin !== undefined) {
+          saveOperations.push(
+            collectionHStationIn.insertOne({ data: ambientData.humidityin, time: new Date() })
+          );
+      }
+
+      Promise.all(saveOperations)
+      .then(() => {
+        console.log("Ambient internal data saved to MongoDB");
+      })
+      .catch((error) => {
+        console.error("Error saving ambient internal data:", error);
+      });
+    }
+
       } catch (error) {
         console.error("Error fetching Ambient Weather data:", error.message);
       }
     };
     
+    // Fetch every 60 seconds
     setInterval(fetchAndBroadcastAmbientData, 60000);
     
 
