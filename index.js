@@ -140,6 +140,9 @@ MongoClient.connect(mongoURL)
         if (ambientData?.tempinf !== undefined) {
           ambientData.tempinfC = ((ambientData.tempinf - 32) * 5 / 9).toFixed(2); // Keep 2 decimals
         }
+        if (ambientData?.tempf !== undefined) {
+          ambientData.tempoutc= ((ambientData.tempf - 32) * 5 / 9).toFixed(2); // Keep 2 decimals
+        }
 
 
         if (ambientData) {
@@ -172,9 +175,9 @@ MongoClient.connect(mongoURL)
               collectionHStationIn.insertOne({ data: ambientData.humidityin, time: new Date() })
             );
           }
-          if (ambientData.tempf !== undefined) {
+          if (ambientData.tempoutc !== undefined) {
             saveOperations.push(
-              collectionTStationOut.insertOne({ data: ambientData.tempf, time: new Date() })
+              collectionTStationOut.insertOne({ data: ambientData.tempoutc, time: new Date() })
             );
           }
           if (ambientData.humidity !== undefined) {
