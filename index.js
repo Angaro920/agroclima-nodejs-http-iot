@@ -14,8 +14,7 @@ import axios from 'axios';
 
 
 const corsOptions = {
-  origin: "http://localhost:5173",
-  credentials: true,
+  origin: "https://vulnerability-enb-die-builder.trycloudflare.com",
 };
 
 const app = express();
