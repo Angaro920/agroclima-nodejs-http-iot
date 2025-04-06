@@ -9,6 +9,80 @@ dotenv.config();
 const mongoURL = "mongodb://localhost:27017/";
 const dbName = "AgroclimaAi";
 
+export const recibirDatosSensores = async (req, res) => {
+    const data = req.body;
+  
+    try {
+      await Promise.all([
+        db.collection("TemperaturaSensor").insertOne({ data: data.temperatura, time: new Date() }),
+        db.collection("HumedadSensor").insertOne({ data: data.humedad, time: new Date() }),
+        db.collection("HidrogenoSensor").insertOne({ data: data.hidrogeno, time: new Date() }),
+        db.collection("LuzSensor").insertOne({ data: data.luz, time: new Date() }),
+      ]);
+  
+      res.status(200).json({ message: "Datos guardados correctamente." });
+    } catch (error) {
+      console.error("Error guardando datos del sensor:", error);
+      res.status(500).json({ error: "Error guardando datos." });
+    }
+  };
+  
+  // Obtener datos de Ambient Weather y guardarlos
+  export const obtenerDatosAmbientWeather = async (req, res) => {
+    try {
+      const response = await axios.get('https://api.ambientweather.net/v1/devices', {
+        params: {
+          apiKey: process.env.AMBIENT_API_KEY,
+          applicationKey: process.env.AMBIENT_APP_KEY
+        }
+      });
+  
+      const ambientData = response.data[0]?.lastData;
+  
+      if (ambientData?.tempinf !== undefined) {
+        ambientData.tempinfC = ((ambientData.tempinf - 32) * 5 / 9).toFixed(2);
+      }
+      if (ambientData?.tempf !== undefined) {
+        ambientData.tempoutc = ((ambientData.tempf - 32) * 5 / 9).toFixed(2);
+      }
+  
+      const saveOperations = [];
+  
+      if (ambientData?.tempinfC !== undefined) {
+        saveOperations.push(db.collection("TemperaturaInterna").insertOne({ data: ambientData.tempinfC, time: new Date() }));
+      }
+      if (ambientData?.humidityin !== undefined) {
+        saveOperations.push(db.collection("HumedadInterna").insertOne({ data: ambientData.humidityin, time: new Date() }));
+      }
+      if (ambientData?.tempoutc !== undefined) {
+        saveOperations.push(db.collection("TemperaturaExterna").insertOne({ data: ambientData.tempoutc, time: new Date() }));
+      }
+      if (ambientData?.humidity !== undefined) {
+        saveOperations.push(db.collection("HumedadExterna").insertOne({ data: ambientData.humidity, time: new Date() }));
+      }
+      if (ambientData?.uv !== undefined) {
+        saveOperations.push(db.collection("Uv").insertOne({ data: ambientData.uv, time: new Date() }));
+      }
+      if (ambientData?.solarradiation !== undefined) {
+        saveOperations.push(db.collection("RadiacionSolar").insertOne({ data: ambientData.solarradiation, time: new Date() }));
+      }
+      if (ambientData?.eventrainin !== undefined) {
+        saveOperations.push(db.collection("Precipitaciones").insertOne({ data: ambientData.eventrainin, time: new Date() }));
+      }
+      if (ambientData?.baromrelin !== undefined) {
+        saveOperations.push(db.collection("PresionBarometricaRelativa").insertOne({ data: ambientData.baromrelin, time: new Date() }));
+      }
+  
+      await Promise.all(saveOperations);
+  
+      res.status(200).json({ message: "Datos de AmbientWeather guardados correctamente." });
+  
+    } catch (error) {
+      console.error("Error al obtener o guardar datos AmbientWeather:", error.message);
+      res.status(500).json({ error: "Error en AmbientWeather API." });
+    }
+  };
+
 export const listData = async (req, res) => {
     const { collectionName } = req.params;
     try {

@@ -1,6 +1,6 @@
 import express from "express"
 import { create, deleteUser, list, listID, login,logout, updateUser, getUser} from "../controller/userController.js"
-import { reporteCSV, reporteXSLM,reportePDF, listData, dataDia, dataSemana, dataMes } from "../controller/dataController.js"
+import { reporteCSV, reporteXSLM,reportePDF, listData, dataDia, dataSemana, dataMes,recibirDatosSensores,obtenerDatosAmbientWeather } from "../controller/dataController.js"
 import authMiddleware from "../middleware/authmiddleware.js"
 const routes = express.Router();
 
@@ -18,8 +18,12 @@ routes.get("/getUser", authMiddleware, getUser)
 routes.post("/login", login)
 routes.post ("/addUser",create)
 routes.post("/logout", logout)
+routes.post("/sensores", recibirDatosSensores);
+routes.post("/ambientweather", obtenerDatosAmbientWeather);
 routes.put("/updateUser/:id", updateUser)
 routes.delete("/deleteUser/:id",deleteUser)
+
+
 
 
 export default routes;
