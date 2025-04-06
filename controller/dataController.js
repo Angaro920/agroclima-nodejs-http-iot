@@ -4,11 +4,22 @@ import { Parser } from "json2csv";
 import ExcelJS from "exceljs"
 import PDFDocument from "pdfkit";
 import dotenv from "dotenv";
+import axios from "axios";
 
 dotenv.config();
-const mongoURL = "mongodb://localhost:27017/";
-const dbName = "AgroclimaAi";
 
+
+
+const dbName = "AgroclimaAi";
+const mongoURL = process.env.MONGO_URI;
+let db;
+
+MongoClient.connect(mongoURL)
+    .then((client) => {
+        console.log("Conectado a MongoDB en DataController");
+        db = client.db("AgroclimaAi");
+    })
+    .catch((error) => console.error("Error conectando a MongoDB:", error));
 export const recibirDatosSensores = async (req, res) => {
     const data = req.body;
   

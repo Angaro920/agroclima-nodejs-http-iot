@@ -1,32 +1,19 @@
 import express from "express";
 import dotenv from "dotenv";
-import connectDB from "./config/db.js";
-import cors from "cors";
-import { recibirDatosSensores, obtenerDatosAmbientWeather } from "./controller/dataController.js";
-import routes from "./routes/Routes.js";
-import mongoose from "mongoose";
+import routes from "./routes/Routes.js"; // <-- Usamos tu archivo de rutas
+import { obtenerDatosAmbientWeather, recibirDatosSensores } from "./controller/dataController.js";
+import connectDB from "./config/db.js"; // <-- Conexión a la base de datos
+import axios from "axios"; // <-- Importamos axios para hacer peticiones HTTP
 
-const mongoURL = "mongodb://127.0.0.1:27017/AgroclimaAi";
-const dbName = "AgroclimaAi";
 dotenv.config();
-const app = express(cors({
-  origin: 'http://localhost:5173', 
-  credentials: true
-}));
-
+const app = express();
 
 app.use(express.json());
+connectDB();
+// Usamos tu archivo de rutas
+app.use("/api", routes);
 
-
-app.use("/api", routes  );
-
-mongoose.connect(mongoURL).then(() => {
-  console.log("Conectado a la base de datos")
-  app.listen(PORT, () => {
-    console.log(`Servidor HTTP corriendo en el puerto : ${PORT}`);
-  });
-}).catch((error) => console.log(error));
-
+// ---- Ejecutar automáticamente cada minuto ----
 const ejecutarTareasPeriodicas = async () => {
   console.log("⏰ Ejecutando tareas periódicas...");
 
@@ -43,11 +30,11 @@ const ejecutarTareasPeriodicas = async () => {
   }
 };
 
-// Fakes para simular una llamada como Express lo haría
+// Fakes para simular req y res
 const obtenerDatosAmbientWeatherFake = () => {
   return new Promise((resolve, reject) => {
     obtenerDatosAmbientWeather(
-      {}, // req vacío
+      {}, 
       { 
         status: () => ({ json: resolve }),
         json: resolve
@@ -68,8 +55,9 @@ const recibirDatosSensoresFake = () => {
   });
 };
 
-// Ejecutar cada 1 minuto (60,000 milisegundos)
+// Ejecutar cada minuto
 setInterval(ejecutarTareasPeriodicas, 60_000);
+
 // ---- Arrancar servidor ----
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
