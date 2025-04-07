@@ -6,8 +6,9 @@ import PDFDocument from "pdfkit";
 import dotenv from "dotenv";
 import axios from "axios";
 
+
 dotenv.config();
-const colecciones = ['TemperaturaInterna', 'TemperaturaExterna', 'HumedadInterna', 'HumedadExterna', 'Uv', 'RadiacionSolar', 'Precipitaciones', 'PresionBarometricaRelativa'];
+const colecciones = ['TemperaturaInterna', 'TemperaturaExterna','TemperaturaSensor','HumedadInterna', 'HumedadExterna','HumedadSensor', 'Uv', 'RadiacionSolar', 'Precipitaciones', 'PresionBarometricaRelativa','DireccionViento', 'VelocidadViento', 'HidrogenoSensor', 'LuzSensor'];
 
 
 const dbName = "AgroclimaAi";
@@ -20,49 +21,6 @@ MongoClient.connect(mongoURL)
     db = client.db("AgroclimaAi");
   })
   .catch((error) => console.error("Error conectando a MongoDB:", error));
-
-export const recibirDatosSensor = async (req, res) => {
-  try {
-    const { temperatura, humedad, gas, luz } = req.body;
-
-    const fechaHoraActual = new Date();
-
-    // Crear documentos independientes
-    const newTEmperatura = new Temperatura({
-      temperatura: temperatura,
-      timestamp: fechaHoraActual
-    });
-
-    const newHumedad = new Humedad({
-      valor: humedad,
-      timestamp: fechaHoraActual
-    });
-
-    const newGas = new Gas({
-      valor: gas,
-      timestamp: fechaHoraActual
-    });
-
-    const newLuz = new Luz({
-      valor: luz,
-      timestamp: fechaHoraActual
-    });
-
-    // Guardarlos todos en paralelo
-    await Promise.all([
-      newTEmperatura.save(),
-      newHumedad.save(),
-      newGas.save(),
-      newLuz.save()
-    ]);
-
-    res.status(201).json({ message: 'Datos guardados correctamente en sus respectivas colecciones' });
-  } catch (error) {
-    console.error('Error al guardar los datos:', error);
-    res.status(500).json({ message: 'Error al guardar los datos' });
-  }
-};
-
 
 export const envioDatosSensores = async (req, res) => {
   try {
@@ -147,6 +105,12 @@ export const obtenerDatosAmbientWeather = async (req, res) => {
     }
     if (ambientData?.baromrelin !== undefined) {
       saveOperations.push(db.collection("PresionBarometricaRelativa").insertOne({ data: ambientData.baromrelin, time: new Date() }));
+    }
+    if (ambientData?. winddir !== undefined) {
+      saveOperations.push(db.collection("DireccionViento").insertOne({ data: ambientData.winddir, time: new Date() }));
+    }
+    if (ambientData?.windspeedmph !== undefined) {
+      saveOperations.push(db.collection("VelocidadViento").insertOne({ data: ambientData.windspeedmph, time: new Date() }));
     }
 
     await Promise.all(saveOperations);

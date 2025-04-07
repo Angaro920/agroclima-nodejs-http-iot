@@ -25,7 +25,7 @@ export const login = async (req, res) => {
         };
         jwt.sign(payload, 'secret', { expiresIn: 3600 }, (err, token) => {
             if (err) throw err;
-            res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'strict', path: '/' });
+            res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'None', path: '/' });
             res.json({ msg: 'Inicio de sesión exitoso' });
         });
     } catch (err) {
