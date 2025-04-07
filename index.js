@@ -1,15 +1,14 @@
 import express from "express";
 import dotenv from "dotenv";
 import routes from "./routes/Routes.js"; // <-- Usamos tu archivo de rutas
-import { obtenerDatosAmbientWeather, recibirDatosSensores } from "./controller/dataController.js";
 import connectDB from "./config/db.js"; // <-- Conexión a la base de datos
-import axios from "axios"; // <-- Importamos axios para hacer peticiones HTTP
+import { obtenerDatosAmbientWeather, recibirDatosSensores } from "./controller/dataController.js"; // <-- Importamos las funciones
 
 dotenv.config();
 const app = express();
-
-app.use(express.json());
 connectDB();
+app.use(express.json());
+
 // Usamos tu archivo de rutas
 app.use("/api", routes);
 
@@ -22,30 +21,12 @@ const ejecutarTareasPeriodicas = async () => {
   } catch (error) {
     console.error("Error al obtener datos AmbientWeather:", error?.message || error);
   }
-
-  try {
-    await recibirDatosSensoresFake();
-  } catch (error) {
-    console.error("Error al recibir datos de sensores:", error?.message || error);
-  }
 };
 
 // Fakes para simular req y res
 const obtenerDatosAmbientWeatherFake = () => {
   return new Promise((resolve, reject) => {
     obtenerDatosAmbientWeather(
-      {}, 
-      { 
-        status: () => ({ json: resolve }),
-        json: resolve
-      }
-    );
-  });
-};
-
-const recibirDatosSensoresFake = () => {
-  return new Promise((resolve, reject) => {
-    recibirDatosSensores(
       {}, 
       { 
         status: () => ({ json: resolve }),
