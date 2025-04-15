@@ -2,39 +2,15 @@ import mongoose from "mongoose";
 
 
 const userSchema = new mongoose.Schema({
-    documento:{
-        type: String,
-        require: true,
-    },
-    userName:{
-        type:String,
-        require: true,
-    },
-    password:{
-        type:String,
-        require: true
-    },
-    name:{
-        type:String,
-        require: true,
-    },
-    email:{
-        type:String,
-        require: true,
-    },
-    grade:{
-        type:String,
-        require: true,
-    },
-    age :{
-        type:String,
-        require: true,
-    },
-    tag :{
-        type: String,
-        require: true
-    }
-
-})
+    documento: { type: String, required: true },
+    userName: { type: String, required: true },
+    password: { type: String, required: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    grade: { type: String, required: true },
+    age: { type: Number, required: true }, // ✅ O mejor cambia a Number si corresponde
+    tag: { type: String, required: true }
+  });
+  
 
 export default mongoose.model("Users", userSchema)
