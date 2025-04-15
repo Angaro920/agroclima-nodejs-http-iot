@@ -5,6 +5,8 @@ import ExcelJS from "exceljs"
 import PDFDocument from "pdfkit";
 import dotenv from "dotenv";
 import axios from "axios";
+import { formatInTimeZone } from 'date-fns-tz';
+import { es } from 'date-fns/locale';
 
 
 dotenv.config();
@@ -30,7 +32,7 @@ export const envioDatosSensores = async (req, res) => {
     for (const col of colecciones) {
       const dato = await db.collection(col)
         .find()
-        .sort({ date: -1 })
+        .sort({ time: -1 })
         .limit(1)
         .toArray();
 
@@ -61,7 +63,6 @@ export const recibirDatosSensores = async (req, res) => {
   }
 };
 
-// Obtener datos de Ambient Weather y guardarlos
 export const obtenerDatosAmbientWeather = async (req, res) => {
   try {
     const response = await axios.get('https://api.ambientweather.net/v1/devices', {
@@ -116,6 +117,7 @@ export const obtenerDatosAmbientWeather = async (req, res) => {
     await Promise.all(saveOperations);
 
     res.status(200).json({ message: "Datos de AmbientWeather guardados correctamente." });
+    console.log(ambientData)
     console.log("Datos de AmbientWeather guardados correctamente.");
 
   } catch (error) {
@@ -140,7 +142,59 @@ export const listData = async (req, res) => {
     res.status(500).json({ message: "Error al obtener los datos", error: error.message });
   }
 }
-
+export const dataDiaDual = async (req, res) => {
+  const { collectionNameA, collectionNameB } = req.params;
+  try {
+    const client = await MongoClient.connect(mongoURL);
+    const db = client.db(dbName);
+    console.log(collectionNameA);
+    console.log(collectionNameB);
+    const collectionExterna = await db.collection(collectionNameA);
+    const collectionInterna = await db.collection(collectionNameB);
+    const combinedData = [];
+    const pipeline = [
+      {
+        $match: {
+          time: { $gte: new Date(new Date().getTime() - 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time" }
+          },
+          promedio: { $avg: "$data" },
+        }
+      },
+      {
+        $sort: { "_id": 1 }
+      }
+    ];
+    const dataExterna = await collectionExterna.aggregate(pipeline).toArray();
+    const dataInterna = await collectionInterna.aggregate(pipeline).toArray();
+    console.log(dataExterna)
+    console.log(dataInterna)
+    
+    dataExterna.forEach((ext, index) => {
+      combinedData.push({
+        hora: formatInTimeZone(ext._id, 'America/Bogota', 'h:mm a', { locale: es }),
+        lugar: 'externa',
+        value: ext.promedio,
+      });
+      if (dataInterna[index]) {
+        combinedData.push({
+          hora: formatInTimeZone(dataInterna[index]._id, 'America/Bogota', 'h:mm a', { locale: es }),
+          lugar: 'interna',
+          value: dataInterna[index].promedio,
+        });
+      }
+    });
+    console.log(combinedData)
+    res.status(200).json(combinedData);
+  } catch(error) {
+    console.log(error)
+  }
+}
 export const dataDia = async (req, res) => {
   const { collectionName } = req.params;
   try {
@@ -156,7 +210,7 @@ export const dataDia = async (req, res) => {
       {
         $group: {
           _id: {
-            $dateTrunc: { date: "$time", unit: "hour" }
+            $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time"}
           },
           promedio: { $avg: "$data" },
         }
@@ -164,8 +218,16 @@ export const dataDia = async (req, res) => {
       {
         $sort: { "_id": 1 }
       }
-    ];
-    const data = await collection.aggregate(pipeline).toArray();
+    ]
+    let data = await collection.aggregate(pipeline).toArray();
+    
+    data = data.map(item => {
+      const fecha = item._id
+      return {
+        ...item,
+        fecha: formatInTimeZone(fecha, 'America/Bogota', 'h:mm a', { locale: es }),
+      };
+    });
     if (data.length === 0) {
       return res.status(404).json({ message: "No se encontraron datos." });
     } res.status(200).json(data);
@@ -197,10 +259,17 @@ export const dataSemana = async (req, res) => {
         }
       },
       {
-        $sort: { "_id": 1 } // Ordenar por fecha ascendente
+        $sort: { "_id": 1 }
       }
     ]
-    const data = await collection.aggregate(pipeline).toArray();
+    let data = await collection.aggregate(pipeline).toArray();
+    data = data.map(item => {
+      const fecha = item._id
+      return {
+        ...item,
+        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy', { locale: es }),
+      };
+    });
     if (data.length === 0) {
       return res.status(404).json({ message: "No se encontraron datos." });
     }
@@ -235,7 +304,14 @@ export const dataMes = async (req, res) => {
         $sort: { "_id": 1 }
       }
     ]
-    const data = await collection.aggregate(pipeline).toArray();
+    let data = await collection.aggregate(pipeline).toArray();
+    data = data.map(item => {
+      const fecha = item._id
+      return {
+        ...item,
+        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy', { locale: es }),
+      };
+    });
     if (data.length === 0) {
       return res.status(404).json({ message: "No se encontraron datos." });
     }
@@ -266,16 +342,19 @@ export const reporteCSV = async (req, res) => {
 
     console.log(`🔎 Buscando datos entre: ${start.toISOString()} y ${end.toISOString()}`);
 
-    const data = await collection.find({
+    const rawData = await collection.find({
       time: { $gte: start, $lte: end } // Asegurar que la consulta usa el campo correcto
     }).toArray();
 
-    console.log(`📊 Datos encontrados: ${data.length}`);
+    console.log(`📊 Datos encontrados: ${rawData.length}`);
 
-    if (!data.length) {
+    if (!rawData.length) {
       return res.status(404).json({ error: "No hay datos en el rango de fechas" });
     }
-
+    const data = rawData.map(item => ({
+      ...item,
+      time: formatInTimeZone(new Date(item.time), 'America/Bogota', 'dd MMMM yyyy HH:mm', { locale: es }),
+    }));
     // Convertir datos a CSV
     const fields = ["data", "time"];
     const parser = new Parser({ fields });
@@ -335,7 +414,7 @@ export const reporteXSLM = async (req, res) => {
     data.forEach(({ data, time }) => {
       worksheet.addRow({
         data,
-        time: new Date(time).toLocaleString("es-ES", { timeZone: "UTC" }) // Formato de fecha legible
+        time: formatInTimeZone(time, 'America/Bogota', 'dd MMMM yyyy HH:mm', { locale: es }),
       });
     });
 
@@ -384,31 +463,94 @@ export const reportePDF = async (req, res) => {
       return res.status(404).json({ error: "No hay datos en el rango de fechas" });
     }
 
-    // Crear el documento PDF
-    const doc = new PDFDocument();
+    // Usar streams para evitar problemas de memoria y paginación
+    const stream = res;
     res.setHeader("Content-Disposition", `attachment; filename=${collectionName}-${startDate}_to_${endDate}.pdf`);
     res.setHeader("Content-Type", "application/pdf");
 
-    doc.pipe(res);
-    doc.fontSize(16).text(`Reporte de ${collectionName}`, { align: "center" });
-    doc.moveDown();
-
-    // Agregar encabezados
-    doc.fontSize(12).text("Valor", 100, doc.y, { bold: true });
-    doc.text("Fecha", 300, doc.y, { bold: true });
-    doc.moveDown();
-
-    // Agregar los datos al PDF
-    data.forEach(({ data, time }) => {
-      doc.text(`${data}`, 100, doc.y);
-      doc.text(new Date(time).toLocaleString("es-ES", { timeZone: "UTC" }), 300, doc.y);
-      doc.moveDown();
+    // Crear el documento PDF con opciones simples
+    const doc = new PDFDocument({
+      margins: { top: 50, bottom: 50, left: 50, right: 50 },
+      size: 'A4',
+      bufferPages: true
     });
+    
+    // Conectar el documento al stream de respuesta
+    doc.pipe(stream);
+    
+    // Título del reporte
+    doc.fontSize(18).font('Helvetica-Bold').text(`Reporte de ${collectionName}`, { align: "center" });
+    doc.moveDown(1.5);
 
+    // Información del periodo
+    doc.fontSize(10).font('Helvetica')
+      .text(`Período: ${formatInTimeZone(start, 'America/Bogota', 'dd/MM/yyyy', { locale: es })} - ${formatInTimeZone(end, 'America/Bogota', 'dd/MM/yyyy', { locale: es })}`);
+    doc.moveDown(1);
+
+    // Definir dimensiones para la tabla
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const valueColumnWidth = pageWidth * 0.4;
+    const dateColumnWidth = pageWidth * 0.6;
+    
+    // Dibujar encabezados iniciales
+    let rowY = doc.y;
+    const drawTableHeader = () => {
+      doc.font('Helvetica-Bold').fontSize(12);
+      doc.rect(doc.page.margins.left, rowY, pageWidth, 20).fillAndStroke('#EEEEEE', '#000000');
+      doc.fillColor('#000000')
+        .text('Valor', doc.page.margins.left + 5, rowY + 6, { width: valueColumnWidth, align: 'left' })
+        .text('Fecha', doc.page.margins.left + valueColumnWidth + 5, rowY + 6, { width: dateColumnWidth, align: 'left' });
+      rowY += 20;
+    };
+    
+    drawTableHeader();
+    let altColor = false;
+    
+    
+    // Calcular altura disponible para datos en cada página
+    const pageHeight = doc.page.height;
+    const contentHeight = pageHeight - doc.page.margins.top - doc.page.margins.bottom - 20; // 20px extra para margen
+    const rowHeight = 20; // Altura estándar para cada fila
+    
+    // Procesar los datos y agregarlos al PDF
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      
+      // Verificar si necesitamos una nueva página
+      if (rowY + rowHeight > doc.page.height - doc.page.margins.bottom - 20) {
+        doc.addPage();
+        rowY = doc.page.margins.top;
+        drawTableHeader();
+        altColor = false;
+      }
+      
+      // Color alternado para las filas
+      if (altColor) {
+        doc.rect(doc.page.margins.left, rowY, pageWidth, rowHeight).fill('#F8F8F8');
+      }
+      altColor = !altColor;
+      
+      // Dibujar el borde de la fila
+      doc.rect(doc.page.margins.left, rowY, pageWidth, rowHeight).stroke('#DDDDDD');
+      
+      // Escribir los datos
+      doc.font('Helvetica').fontSize(10).fillColor('#000000')
+        .text(`${item.data}`, doc.page.margins.left + 5, rowY + 5, { width: valueColumnWidth, align: 'left' })
+        .text(
+          formatInTimeZone(item.time, 'America/Bogota', 'dd MMMM yyyy HH:mm', { locale: es }),
+          doc.page.margins.left + valueColumnWidth + 5, 
+          rowY + 5, 
+          { width: dateColumnWidth, align: 'left' }
+        );
+      
+      rowY += rowHeight;
+    }
+    
+    // Finalizar el documento
     doc.end();
     client.close();
   } catch (error) {
     console.error("❌ Error exportando PDF:", error);
     res.status(500).json({ error: "Error al exportar datos" });
   }
-}; 
+};

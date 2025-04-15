@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import routes from "./routes/Routes.js"; // <-- Usamos tu archivo de rutas
+import routes from "./routes/Routes.js";
 import connectDB from "./config/db.js"; // <-- Conexión a la base de datos
 import { obtenerDatosAmbientWeather, recibirDatosSensores } from "./controller/dataController.js"; // <-- Importamos las funciones
 import cors from "cors";
