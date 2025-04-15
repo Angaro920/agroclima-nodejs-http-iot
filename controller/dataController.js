@@ -141,7 +141,27 @@ export const listData = async (req, res) => {
     const client = await MongoClient.connect(mongoURL);
     const db = client.db(dbName);
     const collection = db.collection(collectionName);
-    const data = await collection.find().sort({ time: -1 }).toArray();
+    const pipeline = [
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time"}
+          },
+          promedio: { $avg: "$data" },
+        }
+      },
+      {
+        $sort: { "_id": 1 }
+      }
+    ]
+    let data = await collection.aggregate(pipeline).toArray();
+    data = data.map(item => {
+      const fecha = item._id
+      return {
+        ...item,
+        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy h:mm a', { locale: es }),
+      };
+    });
 
     if (data.length === 0) {
       return res.status(404).json({ message: "No se encontraron datos." });
@@ -186,13 +206,13 @@ export const dataDiaDual = async (req, res) => {
     
     dataExterna.forEach((ext, index) => {
       combinedData.push({
-        hora: formatInTimeZone(ext._id, 'America/Bogota', 'h:mm a', { locale: es }),
+        hora: formatInTimeZone(ext._id, 'America/Bogota', 'd MMMM h:mm a', { locale: es }),
         lugar: 'externa',
         value: ext.promedio,
       });
       if (dataInterna[index]) {
         combinedData.push({
-          hora: formatInTimeZone(dataInterna[index]._id, 'America/Bogota', 'h:mm a', { locale: es }),
+          hora: formatInTimeZone(dataInterna[index]._id, 'America/Bogota', 'dd MMMM h:mm a', { locale: es }),
           lugar: 'interna',
           value: dataInterna[index].promedio,
         });
@@ -234,7 +254,7 @@ export const dataDia = async (req, res) => {
       const fecha = item._id
       return {
         ...item,
-        fecha: formatInTimeZone(fecha, 'America/Bogota', 'h:mm a', { locale: es }),
+        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM h:mm a', { locale: es }),
       };
     });
     if (data.length === 0) {
