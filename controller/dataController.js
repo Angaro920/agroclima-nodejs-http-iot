@@ -80,6 +80,15 @@ export const obtenerDatosAmbientWeather = async (req, res) => {
     if (ambientData?.tempf !== undefined) {
       ambientData.tempoutc = Number(((ambientData.tempf - 32) * 5 / 9).toFixed(2));
     }
+    if (ambientData?.baromrelin !== undefined) {
+      ambientData.baromrelmm= Number((ambientData.baromrelin * 24.4).toFixed(2));
+    }
+    if (ambientData?.windspeedmph !== undefined) {
+      ambientData.windspeedkph = Number((ambientData.windspeedmph * 1.609344).toFixed(2));
+    }
+    if (ambientData?.eventrainin !== undefined) {
+      ambientData.eventrainmm = Number((ambientData.eventrainin * 24.4).toFixed(2));
+    }
 
     const saveOperations = [];
 
@@ -101,17 +110,17 @@ export const obtenerDatosAmbientWeather = async (req, res) => {
     if (ambientData?.solarradiation !== undefined) {
       saveOperations.push(db.collection("RadiacionSolar").insertOne({ data: ambientData.solarradiation, time: new Date() }));
     }
-    if (ambientData?.eventrainin !== undefined) {
-      saveOperations.push(db.collection("Precipitaciones").insertOne({ data: ambientData.eventrainin, time: new Date() }));
+    if (ambientData?.eventrainmm !== undefined) {
+      saveOperations.push(db.collection("Precipitaciones").insertOne({ data: ambientData.eventrainmm, time: new Date() }));
     }
-    if (ambientData?.baromrelin !== undefined) {
-      saveOperations.push(db.collection("PresionBarometricaRelativa").insertOne({ data: ambientData.baromrelin, time: new Date() }));
+    if (ambientData?.baromrelmm  !== undefined) {
+      saveOperations.push(db.collection("PresionBarometricaRelativa").insertOne({ data: ambientData.baromrelmm, time: new Date() }));
     }
     if (ambientData?. winddir !== undefined) {
       saveOperations.push(db.collection("DireccionViento").insertOne({ data: ambientData.winddir, time: new Date() }));
     }
-    if (ambientData?.windspeedmph !== undefined) {
-      saveOperations.push(db.collection("VelocidadViento").insertOne({ data: ambientData.windspeedmph, time: new Date() }));
+    if (ambientData?.windspeedkph !== undefined) {
+      saveOperations.push(db.collection("VelocidadViento").insertOne({ data: ambientData.windspeedkph, time: new Date() }));
     }
 
     await Promise.all(saveOperations);

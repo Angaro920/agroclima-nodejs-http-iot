@@ -20,12 +20,12 @@ routes.get("/listUser/:id", listID)
 routes.get("/getUser", authMiddleware, getUser)
 routes.get("/getLastData", envioDatosSensores)
 routes.post("/login", login)
-// routes.post("/addUser", create)
+routes.post("/addUser", create)
 routes.post("/logout", logout)
 routes.post("/sensores", recibirDatosSensores);
 routes.post("/ambientweather", obtenerDatosAmbientWeather);
 // routes.put("/updateUser/:id", updateUser)
-// routes.delete("/deleteUser/:id", deleteUser)
+routes.delete("/deleteUser/:id", deleteUser)
 
 routes.get("/auditorias", authMiddleware, listarAuditorias);
 
