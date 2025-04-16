@@ -1,10 +1,11 @@
 import express from "express"
 import { create, deleteUser, list, listID, login, logout, updateUser, getUser } from "../controller/userController.js"
-import { listarAuditorias } from "../controller/auditoriaController.js";
+import { listarAuditorias, exportarAuditorias } from "../controller/auditoriaController.js";
 import { reporteCSV, reporteXSLM, reportePDF, listData, dataDia, dataSemana, dataMes, obtenerDatosAmbientWeather, envioDatosSensores, recibirDatosSensores, dataDiaDual } from "../controller/dataController.js"
 
 import authMiddleware from "../middleware/authmiddleware.js"
 const routes = express.Router();
+
 
 routes.get("/listMonth/:collectionName", dataMes) //Trae los datos del mes
 routes.get("/listWeek/:collectionName", dataSemana) //Trae los datos de la semana
@@ -25,10 +26,9 @@ routes.post("/logout", logout)
 routes.post("/sensores", recibirDatosSensores);
 routes.post("/ambientweather", obtenerDatosAmbientWeather);
 // routes.put("/updateUser/:id", updateUser)
-routes.delete("/deleteUser/:id", deleteUser)
+//routes.delete("/deleteUser/:id", deleteUser)
 
-routes.get("/auditorias", authMiddleware, listarAuditorias);
-
+routes.get("/audits/:type", authMiddleware, exportarAuditorias);
 
 
 

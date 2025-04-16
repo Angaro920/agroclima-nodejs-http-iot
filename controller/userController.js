@@ -119,13 +119,15 @@ export const updateUser = async (req, res) => {
 
     const updatedData = await User.findByIdAndUpdate(id, req.body, { new: true });
 
-    await registrarAuditoria(req.user.userName, "Actualización de usuario", {
+    const usuarioAutenticado = req.user?.userName || 'Sistema';
+    await registrarAuditoria(usuarioAutenticado, "Actualización de usuario", {
       usuarioActualizado: updatedData.userName,
       cambios: req.body
     });
 
     res.status(200).json(updatedData);
   } catch (error) {
+    console.error("❌ Error en updateUser:", error.message);
     res.status(500).json({ errorMessage: error.message });
   }
 };
@@ -137,7 +139,9 @@ export const deleteUser = async (req, res) => {
     const userExist = await User.findById(id);
     if (!userExist) return res.status(404).json({ message: "No hay datos encontrados" });
 
-    await registrarAuditoria(req.user.userName, "Eliminación de usuario", {
+    const usuarioAutenticado = req.user?.userName || 'Sistema';
+
+    await registrarAuditoria(usuarioAutenticado, "Eliminación de usuario", {
       usuarioEliminado: userExist.userName,
       idEliminado: id
     });
@@ -145,6 +149,7 @@ export const deleteUser = async (req, res) => {
     await User.findByIdAndDelete(id);
     res.status(200).json({ message: "Usuario eliminado correctamente" });
   } catch (error) {
+    console.error("❌ Error al eliminar:", error.message);
     res.status(500).json({ errorMessage: error.message });
   }
 };

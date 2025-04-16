@@ -15,7 +15,7 @@ const allowedOrigins = [
 dotenv.config();
 const app = express();
 connectDB();
-app.use(express.json());
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
@@ -28,6 +28,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'], 
   credentials: true
 }));
+
+app.use(express.json());
 app.use(cookieParser());
 
 // Usamos tu archivo de rutas
