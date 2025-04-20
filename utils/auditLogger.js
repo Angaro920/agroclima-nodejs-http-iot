@@ -1,5 +1,4 @@
-/* import { MongoClient } from "mongodb";
-import dotenv from "dotenv"; */
+
 const { MongoClient } = require('mongodb');
 const dotenv = require('dotenv');
 

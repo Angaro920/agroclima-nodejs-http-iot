@@ -22,6 +22,7 @@ const allowedOrigins = [
 
 dotenv.config();
 const app = express();
+app.disable('x-powered-by');
 connectDB();
 
 app.use(cors({

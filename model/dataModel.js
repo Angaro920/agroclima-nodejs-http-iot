@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const temperaturaSchema = new mongoose.Schema({
   temperatura: { type: String, required: true },

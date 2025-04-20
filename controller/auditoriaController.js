@@ -9,43 +9,58 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const moment = require('moment');
 
-
 const mongoURL = process.env.MONGO_URL || "mongodb://localhost:27017";
 const dbName = "AgroclimaAi";
 const auditCollection = "auditorias";
 
+// Función para conectar a MongoDB
+const connectToMongoDB = async () => {
+  try {
+    const client = await MongoClient.connect(mongoURL);
+    console.log("Conectado a MongoDB en AuditoriaController");
+    const db = client.db(dbName);
+    return { client, db };
+  } catch (error) {
+    console.error("Error conectando a MongoDB:", error);
+    throw error;
+  }
+};
+
 // ✅ Listar en JSON (para frontend)
 const listarAuditorias = async (req, res) => {
+  let client;
   try {
-    const client = new MongoClient(mongoURL);
-    await client.connect();
-    const db = client.db(dbName);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
     const auditorias = await db
       .collection(auditCollection)
       .find()
       .sort({ fecha: -1 })
       .toArray();
-    await client.close();
 
     res.status(200).json(auditorias);
   } catch (err) {
     console.error("Error al consultar auditorías:", err);
     res.status(500).json({ error: "Error en el servidor" });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 };
 
 const exportarAuditorias = async (req, res) => {
   const { type } = req.params;
   const { startDate, endDate } = req.query;
+  let client;
 
   if (!startDate || !endDate) {
     return res.status(400).json({ error: "Fechas requeridas" });
   }
 
   try {
-    const client = new MongoClient(mongoURL);
-    await client.connect();
-    const db = client.db(dbName);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
 
     const auditorias = await db
       .collection(auditCollection)
@@ -126,6 +141,10 @@ const exportarAuditorias = async (req, res) => {
   } catch (err) {
     console.error("❌ Error al exportar auditorías:", err);
     res.status(500).json({ error: "Error en el servidor" });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 };
 

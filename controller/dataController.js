@@ -6,33 +6,32 @@ const dotenv = require('dotenv');
 const axios = require('axios');
 const { formatInTimeZone } = require('date-fns-tz');
 const { es } = require('date-fns/locale');
-/* import ExcelJS from "exceljs"
-import PDFDocument from "pdfkit";
-import dotenv from "dotenv";
-import axios from "axios";
-import { formatInTimeZone } from 'date-fns-tz';
-import { es } from 'date-fns/locale';
- */
+
 
 dotenv.config();
-const colecciones = ['TemperaturaInterna', 'TemperaturaExterna','TemperaturaSensor','HumedadInterna', 'HumedadExterna','HumedadSensor', 'Uv', 'RadiacionSolar', 'Precipitaciones', 'PresionBarometricaRelativa','DireccionViento', 'VelocidadViento', 'HidrogenoSensor', 'LuzSensor'];
-
+const colecciones = ['TemperaturaInterna', 'TemperaturaExterna', 'TemperaturaSensor', 'HumedadInterna', 'HumedadExterna', 'HumedadSensor', 'Uv', 'RadiacionSolar', 'Precipitaciones', 'PresionBarometricaRelativa', 'DireccionViento', 'VelocidadViento', 'HidrogenoSensor', 'LuzSensor'];
 
 const dbName = "AgroclimaAi";
-const mongoURL = process.env.MONGO_URI;
-let db;
+const mongoURL = process.env.MONGO_URI || "mongodb://localhost:27017/AgroclimaAi";
 
-MongoClient.connect(mongoURL)
-  .then((client) => {
-    console.log("Conectado a MongoDB en DataController");
-    db = client.db("AgroclimaAi");
-  })
-  .catch((error) => console.error("Error conectando a MongoDB:", error));
-
-  const envioDatosSensores = async (req, res) => {
+// Función para conectar a MongoDB
+const connectToMongoDB = async () => {
   try {
     const client = await MongoClient.connect(mongoURL);
+    console.log("Conectado a MongoDB en DataController");
     const db = client.db(dbName);
+    return { client, db };
+  } catch (error) {
+    console.error("Error conectando a MongoDB:", error);
+    throw error;
+  }
+};
+
+const envioDatosSensores = async (req, res) => {
+  let client;
+  try {
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
     const resultados = {};
     for (const col of colecciones) {
       const dato = await db.collection(col)
@@ -43,17 +42,25 @@ MongoClient.connect(mongoURL)
 
       resultados[col] = dato[0] || null;
     }
-    res.json(resultados);
+    res.status(200).json(resultados);
   } catch (error) {
     console.error("Error al obtener datos de los sensores:", error);
     res.status(500).json({ error: "Error al obtener datos de los sensores." });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
-}
+};
 
 const recibirDatosSensores = async (req, res) => {
-  const data = req.body;
-  const currentTime = new Date();
+  let client;
   try {
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+    const data = req.body;
+    const currentTime = new Date();
+
     await Promise.all([
       db.collection("TemperaturaSensor").insertOne({ data: data.temperatura, time: currentTime }),
       db.collection("HumedadSensor").insertOne({ data: data.humedad, time: currentTime }),
@@ -65,11 +72,19 @@ const recibirDatosSensores = async (req, res) => {
   } catch (error) {
     console.error("Error guardando datos del sensor:", error);
     res.status(500).json({ error: "Error guardando datos." });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 };
 
 const obtenerDatosAmbientWeather = async (req, res) => {
+  let client;
   try {
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+
     const response = await axios.get('https://api.ambientweather.net/v1/devices', {
       params: {
         apiKey: process.env.AMBIENT_API_KEY,
@@ -78,79 +93,73 @@ const obtenerDatosAmbientWeather = async (req, res) => {
     });
 
     const ambientData = response.data[0]?.lastData;
-
-    if (ambientData?.tempinf !== undefined) {
-      ambientData.tempinfC = Number(((ambientData.tempinf - 32) * 5 / 9).toFixed(2));
-    }
-    if (ambientData?.tempf !== undefined) {
-      ambientData.tempoutc = Number(((ambientData.tempf - 32) * 5 / 9).toFixed(2));
-    }
-    if (ambientData?.baromrelin !== undefined) {
-      ambientData.baromrelmm= Number((ambientData.baromrelin * 24.4).toFixed(2));
-    }
-    if (ambientData?.windspeedmph !== undefined) {
-      ambientData.windspeedkph = Number((ambientData.windspeedmph * 1.609344).toFixed(2));
-    }
-    if (ambientData?.eventrainin !== undefined) {
-      ambientData.eventrainmm = Number((ambientData.eventrainin * 24.4).toFixed(2));
+    if (!ambientData) {
+      return res.status(404).json({ error: "No se encontraron datos de AmbientWeather." });
     }
 
-    const saveOperations = [];
+    // Conversiones
+    const conversiones = [
+      { key: 'tempinf', newKey: 'tempinfC', factor: v => (v - 32) * 5 / 9 },
+      { key: 'tempf', newKey: 'tempoutc', factor: v => (v - 32) * 5 / 9 },
+      { key: 'baromrelin', newKey: 'baromrelmm', factor: v => v * 24.4 },
+      { key: 'windspeedmph', newKey: 'windspeedkph', factor: v => v * 1.609344 },
+      { key: 'eventrainin', newKey: 'eventrainmm', factor: v => v * 24.4 }
+    ];
 
-    if (ambientData?.tempinfC !== undefined) {
-      saveOperations.push(db.collection("TemperaturaInterna").insertOne({ data: ambientData.tempinfC, time: new Date() }));
-    }
-    if (ambientData?.humidityin !== undefined) {
-      saveOperations.push(db.collection("HumedadInterna").insertOne({ data: ambientData.humidityin, time: new Date() }));
-    }
-    if (ambientData?.tempoutc !== undefined) {
-      saveOperations.push(db.collection("TemperaturaExterna").insertOne({ data: ambientData.tempoutc, time: new Date() }));
-    }
-    if (ambientData?.humidity !== undefined) {
-      saveOperations.push(db.collection("HumedadExterna").insertOne({ data: ambientData.humidity, time: new Date() }));
-    }
-    if (ambientData?.uv !== undefined) {
-      saveOperations.push(db.collection("Uv").insertOne({ data: ambientData.uv, time: new Date() }));
-    }
-    if (ambientData?.solarradiation !== undefined) {
-      saveOperations.push(db.collection("RadiacionSolar").insertOne({ data: ambientData.solarradiation, time: new Date() }));
-    }
-    if (ambientData?.eventrainmm !== undefined) {
-      saveOperations.push(db.collection("Precipitaciones").insertOne({ data: ambientData.eventrainmm, time: new Date() }));
-    }
-    if (ambientData?.baromrelmm  !== undefined) {
-      saveOperations.push(db.collection("PresionBarometricaRelativa").insertOne({ data: ambientData.baromrelmm, time: new Date() }));
-    }
-    if (ambientData?. winddir !== undefined) {
-      saveOperations.push(db.collection("DireccionViento").insertOne({ data: ambientData.winddir, time: new Date() }));
-    }
-    if (ambientData?.windspeedkph !== undefined) {
-      saveOperations.push(db.collection("VelocidadViento").insertOne({ data: ambientData.windspeedkph, time: new Date() }));
-    }
+    conversiones.forEach(({ key, newKey, factor }) => {
+      if (ambientData[key] !== undefined) {
+        ambientData[newKey] = Number(factor(ambientData[key]).toFixed(2));
+      }
+    });
+
+    // Guardado en base de datos
+    const saveMap = [
+      { key: 'tempinfC', collection: "TemperaturaInterna" },
+      { key: 'humidityin', collection: "HumedadInterna" },
+      { key: 'tempoutc', collection: "TemperaturaExterna" },
+      { key: 'humidity', collection: "HumedadExterna" },
+      { key: 'uv', collection: "Uv" },
+      { key: 'solarradiation', collection: "RadiacionSolar" },
+      { key: 'eventrainmm', collection: "Precipitaciones" },
+      { key: 'baromrelmm', collection: "PresionBarometricaRelativa" },
+      { key: 'winddir', collection: "DireccionViento" },
+      { key: 'windspeedkph', collection: "VelocidadViento" }
+    ];
+
+    const saveOperations = saveMap.reduce((ops, { key, collection }) => {
+      if (ambientData[key] !== undefined) {
+        ops.push(db.collection(collection).insertOne({ data: ambientData[key], time: new Date() }));
+      }
+      return ops;
+    }, []);
 
     await Promise.all(saveOperations);
 
-    res.status(200).json({ message: "Datos de AmbientWeather guardados correctamente." });
-    console.log(ambientData)
     console.log("Datos de AmbientWeather guardados correctamente.");
+    res.status(200).json({ message: "Datos de AmbientWeather guardados correctamente." });
 
   } catch (error) {
     console.error("Error al obtener o guardar datos AmbientWeather:", error.message);
     res.status(500).json({ error: "Error en AmbientWeather API." });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 };
 
 const listData = async (req, res) => {
-  const { collectionName } = req.params;
+  let client;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+    const { collectionName } = req.params;
     const collection = db.collection(collectionName);
     const pipeline = [
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time"}
+            $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time" }
           },
           promedio: { $avg: "$data" },
         }
@@ -174,17 +183,25 @@ const listData = async (req, res) => {
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener los datos", error: error.message });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 }
 const dataDiaDual = async (req, res) => {
-  const { collectionNameA, collectionNameB } = req.params;
+  let client;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
-    console.log(collectionNameA);
-    console.log(collectionNameB);
-    const collectionExterna = await db.collection(collectionNameA);
-    const collectionInterna = await db.collection(collectionNameB);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+    const { collectionNameA, collectionNameB } = req.params;
+
+    if (!collectionNameA || !collectionNameB) {
+      return res.status(400).json({ error: "Nombres de colección requeridos" });
+    }
+
+    const collectionExterna = db.collection(collectionNameA);
+    const collectionInterna = db.collection(collectionNameB);
     const combinedData = [];
     const pipeline = [
       {
@@ -204,11 +221,12 @@ const dataDiaDual = async (req, res) => {
         $sort: { "_id": 1 }
       }
     ];
-    const dataExterna = await collectionExterna.aggregate(pipeline).toArray();
-    const dataInterna = await collectionInterna.aggregate(pipeline).toArray();
-    console.log(dataExterna)
-    console.log(dataInterna)
-    
+
+    const [dataExterna, dataInterna] = await Promise.all([
+      collectionExterna.aggregate(pipeline).toArray(),
+      collectionInterna.aggregate(pipeline).toArray()
+    ]);
+
     dataExterna.forEach((ext, index) => {
       combinedData.push({
         hora: formatInTimeZone(ext._id, 'America/Bogota', 'd MMMM h:mm a', { locale: es }),
@@ -223,17 +241,23 @@ const dataDiaDual = async (req, res) => {
         });
       }
     });
-    console.log(combinedData)
+
     res.status(200).json(combinedData);
-  } catch(error) {
-    console.log(error)
+  } catch (error) {
+    console.error("Error al obtener datos duales:", error);
+    res.status(500).json({ error: "Error al obtener datos duales" });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
-}
+};
 const dataDia = async (req, res) => {
-  const { collectionName } = req.params;
+  let client;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+    const { collectionName } = req.params;
     const collection = db.collection(collectionName);
     const pipeline = [
       {
@@ -244,7 +268,7 @@ const dataDia = async (req, res) => {
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time"}
+            $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time" }
           },
           promedio: { $avg: "$data" },
         }
@@ -254,7 +278,7 @@ const dataDia = async (req, res) => {
       }
     ]
     let data = await collection.aggregate(pipeline).toArray();
-    
+
     data = data.map(item => {
       const fecha = item._id
       return {
@@ -264,17 +288,21 @@ const dataDia = async (req, res) => {
     });
     if (data.length === 0) {
       return res.status(404).json({ message: "No se encontraron datos." });
-    } res.status(200).json(data);
+    }
+    res.status(200).json(data);
   } catch (e) {
     return res.status(500).json({ message: "Error al obtener los datos", error: e.message });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 }
 
 const dataSemana = async (req, res) => {
   const { collectionName } = req.params;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
+    const { client, db } = await connectToMongoDB();
     const collection = db.collection(collectionName);
     const pipeline = [
       {
@@ -315,8 +343,7 @@ const dataSemana = async (req, res) => {
 const dataMes = async (req, res) => {
   const { collectionName } = req.params;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
+    const { client, db } = await connectToMongoDB();
     const collection = db.collection(collectionName);
     const pipeline = [
       {
@@ -355,16 +382,17 @@ const dataMes = async (req, res) => {
   }
 }
 const reporteCSV = async (req, res) => {
-  const { collectionName } = req.params;
-  const { startDate, endDate } = req.query;
-
-  if (!collectionName) {
-    return res.status(400).json({ error: "Debe proporcionar un nombre de colección" });
-  }
-
+  let client;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+    const { collectionName } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!collectionName || !startDate || !endDate) {
+      return res.status(400).json({ error: "Parámetros incompletos" });
+    }
+
     const collection = db.collection(collectionName);
 
     // Convertir fechas a UTC
@@ -377,7 +405,7 @@ const reporteCSV = async (req, res) => {
     console.log(`🔎 Buscando datos entre: ${start.toISOString()} y ${end.toISOString()}`);
 
     const rawData = await collection.find({
-      time: { $gte: start, $lte: end } // Asegurar que la consulta usa el campo correcto
+      time: { $gte: start, $lte: end }
     }).toArray();
 
     console.log(`📊 Datos encontrados: ${rawData.length}`);
@@ -385,36 +413,43 @@ const reporteCSV = async (req, res) => {
     if (!rawData.length) {
       return res.status(404).json({ error: "No hay datos en el rango de fechas" });
     }
+
     const data = rawData.map(item => ({
       ...item,
       time: formatInTimeZone(new Date(item.time), 'America/Bogota', 'dd MMMM yyyy HH:mm', { locale: es }),
     }));
+
     // Convertir datos a CSV
     const fields = ["data", "time"];
     const parser = new Parser({ fields });
     const csv = parser.parse(data);
 
-    res.header("Content-Type", "text/csv");
-    res.attachment(`${collectionName}-${startDate}_to_${endDate}.csv`);
+    const fileName = `${collectionName}-${startDate}_to_${endDate}.csv`;
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
     res.send(csv);
 
-    client.close();
   } catch (error) {
-    console.error("❌ Error exportando CSV:", error);
+    console.error("Error exportando CSV:", error);
     res.status(500).json({ error: "Error al exportar datos" });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
-}
+};
+
 const reporteXSLM = async (req, res) => {
-  const { collectionName } = req.params;
-  const { startDate, endDate } = req.query;
-
-  if (!collectionName || !startDate || !endDate) {
-    return res.status(400).json({ error: "Debe proporcionar el nombre de la colección y un rango de fechas" });
-  }
-
+  let client;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+    const { collectionName } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!collectionName || !startDate || !endDate) {
+      return res.status(400).json({ error: "Parámetros incompletos" });
+    }
     const collection = db.collection(collectionName);
 
     // Convertir fechas a UTC
@@ -451,35 +486,35 @@ const reporteXSLM = async (req, res) => {
         time: formatInTimeZone(time, 'America/Bogota', 'dd MMMM yyyy HH:mm', { locale: es }),
       });
     });
-
-    // Configurar la respuesta HTTP
-    res.setHeader("Content-Disposition", `attachment; filename=${collectionName}-${startDate}_to_${endDate}.xlsx`);
+    const fileName = `${collectionName}-${startDate}_to_${endDate}.xlsx`;
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-
-    // Enviar el archivo como respuesta
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
     await workbook.xlsx.write(res);
     res.end();
 
-    client.close();
   } catch (error) {
-    console.error("❌ Error exportando XLSX:", error);
+    console.error("Error exportando XLSX:", error);
     res.status(500).json({ error: "Error al exportar datos" });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
+};
 
-}
 const reportePDF = async (req, res) => {
-  const { collectionName } = req.params;
-  const { startDate, endDate } = req.query;
-
-  if (!collectionName || !startDate || !endDate) {
-    return res.status(400).json({ error: "Debe proporcionar el nombre de la colección y un rango de fechas" });
-  }
-
+  let client;
   try {
-    const client = await MongoClient.connect(mongoURL);
-    const db = client.db(dbName);
-    const collection = db.collection(collectionName);
+    const { client: mongoClient, db } = await connectToMongoDB();
+    client = mongoClient;
+    const { collectionName } = req.params;
+    const { startDate, endDate } = req.query;
 
+    if (!collectionName || !startDate || !endDate) {
+      return res.status(400).json({ error: "Parámetros incompletos" });
+    }
+
+    const collection = db.collection(collectionName);
     // Convertir fechas a UTC
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -499,8 +534,9 @@ const reportePDF = async (req, res) => {
 
     // Usar streams para evitar problemas de memoria y paginación
     const stream = res;
-    res.setHeader("Content-Disposition", `attachment; filename=${collectionName}-${startDate}_to_${endDate}.pdf`);
+    const fileName = `${collectionName}-${startDate}_to_${endDate}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
 
     // Crear el documento PDF con opciones simples
     const doc = new PDFDocument({
@@ -508,10 +544,10 @@ const reportePDF = async (req, res) => {
       size: 'A4',
       bufferPages: true
     });
-    
+
     // Conectar el documento al stream de respuesta
     doc.pipe(stream);
-    
+
     // Título del reporte
     doc.fontSize(18).font('Helvetica-Bold').text(`Reporte de ${collectionName}`, { align: "center" });
     doc.moveDown(1.5);
@@ -525,7 +561,7 @@ const reportePDF = async (req, res) => {
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const valueColumnWidth = pageWidth * 0.4;
     const dateColumnWidth = pageWidth * 0.6;
-    
+
     // Dibujar encabezados iniciales
     let rowY = doc.y;
     const drawTableHeader = () => {
@@ -536,20 +572,20 @@ const reportePDF = async (req, res) => {
         .text('Fecha', doc.page.margins.left + valueColumnWidth + 5, rowY + 6, { width: dateColumnWidth, align: 'left' });
       rowY += 20;
     };
-    
+
     drawTableHeader();
     let altColor = false;
-    
-    
+
+
     // Calcular altura disponible para datos en cada página
     const pageHeight = doc.page.height;
     const contentHeight = pageHeight - doc.page.margins.top - doc.page.margins.bottom - 20; // 20px extra para margen
     const rowHeight = 20; // Altura estándar para cada fila
-    
+
     // Procesar los datos y agregarlos al PDF
     for (let i = 0; i < data.length; i++) {
       const item = data[i];
-      
+
       // Verificar si necesitamos una nueva página
       if (rowY + rowHeight > doc.page.height - doc.page.margins.bottom - 20) {
         doc.addPage();
@@ -557,38 +593,40 @@ const reportePDF = async (req, res) => {
         drawTableHeader();
         altColor = false;
       }
-      
+
       // Color alternado para las filas
       if (altColor) {
         doc.rect(doc.page.margins.left, rowY, pageWidth, rowHeight).fill('#F8F8F8');
       }
       altColor = !altColor;
-      
+
       // Dibujar el borde de la fila
       doc.rect(doc.page.margins.left, rowY, pageWidth, rowHeight).stroke('#DDDDDD');
-      
+
       // Escribir los datos
       doc.font('Helvetica').fontSize(10).fillColor('#000000')
         .text(`${item.data}`, doc.page.margins.left + 5, rowY + 5, { width: valueColumnWidth, align: 'left' })
         .text(
           formatInTimeZone(item.time, 'America/Bogota', 'dd MMMM yyyy HH:mm', { locale: es }),
-          doc.page.margins.left + valueColumnWidth + 5, 
-          rowY + 5, 
+          doc.page.margins.left + valueColumnWidth + 5,
+          rowY + 5,
           { width: dateColumnWidth, align: 'left' }
         );
-      
+
       rowY += rowHeight;
     }
-    
+
     // Finalizar el documento
     doc.end();
-    client.close();
   } catch (error) {
-    console.error("❌ Error exportando PDF:", error);
+    console.error("Error exportando PDF:", error);
     res.status(500).json({ error: "Error al exportar datos" });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 };
-
 module.exports = {
   envioDatosSensores,
   recibirDatosSensores,

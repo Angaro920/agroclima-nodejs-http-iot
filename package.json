@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watchAll",
     "start": "nodemon --experimental-modules --es-module-specifier-resolution=node index.js",
     "dev": "node --watch index.js"
   },
@@ -41,5 +42,11 @@
     "mock-req-res": "^1.2.1",
     "mongodb-memory-server": "^10.1.4",
     "supertest": "^7.1.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ]
   }
 }
