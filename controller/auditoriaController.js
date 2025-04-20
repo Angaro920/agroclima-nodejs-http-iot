@@ -1,15 +1,21 @@
-import { MongoClient } from "mongodb";
+/* import { MongoClient } from "mongodb";
 import { Parser } from "json2csv";
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
-import moment from "moment";
+import moment from "moment"; */
+const { MongoClient } = require('mongodb');
+const { Parser } = require('json2csv');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+const moment = require('moment');
+
 
 const mongoURL = process.env.MONGO_URL || "mongodb://localhost:27017";
 const dbName = "AgroclimaAi";
 const auditCollection = "auditorias";
 
 // ✅ Listar en JSON (para frontend)
-export const listarAuditorias = async (req, res) => {
+const listarAuditorias = async (req, res) => {
   try {
     const client = new MongoClient(mongoURL);
     await client.connect();
@@ -28,8 +34,7 @@ export const listarAuditorias = async (req, res) => {
   }
 };
 
-// ✅ Exportar reporte por tipo
-export const exportarAuditorias = async (req, res) => {
+const exportarAuditorias = async (req, res) => {
   const { type } = req.params;
   const { startDate, endDate } = req.query;
 
@@ -122,4 +127,9 @@ export const exportarAuditorias = async (req, res) => {
     console.error("❌ Error al exportar auditorías:", err);
     res.status(500).json({ error: "Error en el servidor" });
   }
+};
+
+module.exports = {
+  listarAuditorias,
+  exportarAuditorias
 };

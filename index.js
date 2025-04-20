@@ -1,11 +1,19 @@
-import express from "express";
+const express = require('express');
+const dotenv = require('dotenv');
+const routes = require('./routes/Routes');
+const connectDB = require('./config/db');
+const { obtenerDatosAmbientWeather } = require('./controller/dataController');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+
+/* import express from "express";
 import dotenv from "dotenv";
 import routes from "./routes/Routes.js";
 import connectDB from "./config/db.js"; // <-- Conexión a la base de datos
 import { obtenerDatosAmbientWeather, recibirDatosSensores } from "./controller/dataController.js"; // <-- Importamos las funciones
 import cors from "cors";
 import cookieParser from "cookie-parser";
-
+ */
 
 const allowedOrigins = [
   'http://localhost:5173', // para desarrollo

@@ -1,5 +1,7 @@
-import jwt from "jsonwebtoken";
-import User from "../model/userModel.js"; // Asegúrate de tener esto
+/* import jwt from "jsonwebtoken";
+import User from "../model/userModel.js";*/
+const jwt = require('jsonwebtoken');
+const User = require('../model/userModel');
 
 const authMiddleware = async (req, res, next) => {
   const token = req.cookies.token; // Obtiene el token desde las cookies
@@ -23,4 +25,4 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-export default authMiddleware;
+module.exports = authMiddleware;

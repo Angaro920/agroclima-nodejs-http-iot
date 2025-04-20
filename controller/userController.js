@@ -1,10 +1,15 @@
-import User from '../model/userModel.js';
+const User = require('../model/userModel');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { registrarAuditoria } = require('../utils/auditLogger');
+
+/* import User from '../model/userModel.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { registrarAuditoria } from '../utils/auditLogger.js';
-
+ */
 // 🟢 LOGIN
-export const login = async (req, res) => {
+const login = async (req, res) => {
   const { userName, password } = req.body;
   try {
     const user = await User.findOne({ userName });
@@ -31,7 +36,7 @@ export const login = async (req, res) => {
 };
 
 // 🟢 GET USER AUTENTICADO
-export const getUser = async (req, res) => {
+const getUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
@@ -43,7 +48,7 @@ export const getUser = async (req, res) => {
 };
 
 // 🟢 LOGOUT
-export const logout = async (req, res) => {
+const logout = async (req, res) => {
   try {
     res.setHeader("Set-Cookie", "token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict");
     res.clearCookie("token", { httpOnly: true, secure: false, sameSite: "strict", path: "/" });
@@ -55,7 +60,7 @@ export const logout = async (req, res) => {
 };
 
 // 🟢 CREAR USUARIO
-export const create = async (req, res) => {
+const create = async (req, res) => {
   try {
     const { userName, password } = req.body;
     const userExist = await User.findOne({ userName });
@@ -77,7 +82,7 @@ export const create = async (req, res) => {
 };
 
 // 🟢 LISTAR TODOS
-export const list = async (req, res) => {
+const list = async (req, res) => {
   try {
     const userData = await User.find();
     if (!userData || userData.length === 0)
@@ -89,7 +94,7 @@ export const list = async (req, res) => {
 };
 
 // 🟢 LISTAR POR ID
-export const listID = async (req, res) => {
+const listID = async (req, res) => {
   try {
     const id = req.params.id;
     const userExist = await User.findById(id);
@@ -101,7 +106,7 @@ export const listID = async (req, res) => {
 };
 
 // 🟢 ACTUALIZAR USUARIO
-export const updateUser = async (req, res) => {
+const updateUser = async (req, res) => {
   try {
     const id = req.params.id;
     const userExist = await User.findById(id);
@@ -133,7 +138,7 @@ export const updateUser = async (req, res) => {
 };
 
 // 🟢 ELIMINAR USUARIO
-export const deleteUser = async (req, res) => {
+const deleteUser = async (req, res) => {
   try {
     const id = req.params.id;
     const userExist = await User.findById(id);
@@ -152,4 +157,15 @@ export const deleteUser = async (req, res) => {
     console.error("❌ Error al eliminar:", error.message);
     res.status(500).json({ errorMessage: error.message });
   }
+};
+
+module.exports = {
+  login,
+  getUser,
+  logout,
+  create,
+  list,
+  listID,
+  updateUser,
+  deleteUser
 };

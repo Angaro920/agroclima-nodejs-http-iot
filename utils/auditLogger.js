@@ -1,5 +1,8 @@
-import { MongoClient } from "mongodb";
-import dotenv from "dotenv";
+/* import { MongoClient } from "mongodb";
+import dotenv from "dotenv"; */
+const { MongoClient } = require('mongodb');
+const dotenv = require('dotenv');
+
 
 dotenv.config();
 
@@ -7,7 +10,7 @@ const mongoURL = process.env.MONGO_URL || "mongodb://localhost:27017";
 const dbName = "AgroclimaAi";
 const auditCollection = "auditorias";
 
-export async function registrarAuditoria(usuario, accion, detalles = {}) {
+const registrarAuditoria = async (usuario, accion, detalles = {}) => {
   const client = new MongoClient(mongoURL);
   try {
     await client.connect();
@@ -24,3 +27,7 @@ export async function registrarAuditoria(usuario, accion, detalles = {}) {
     await client.close();
   }
 }
+
+module.exports = {
+  registrarAuditoria
+};

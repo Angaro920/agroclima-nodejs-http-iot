@@ -1,13 +1,18 @@
-import { Temperatura, Humedad, Gas, Luz } from "../model/dataModel.js";
-import { MongoClient } from "mongodb";
-import { Parser } from "json2csv";
-import ExcelJS from "exceljs"
+const MongoClient = require('mongodb').MongoClient;
+const { Parser } = require('json2csv');
+const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+const dotenv = require('dotenv');
+const axios = require('axios');
+const { formatInTimeZone } = require('date-fns-tz');
+const { es } = require('date-fns/locale');
+/* import ExcelJS from "exceljs"
 import PDFDocument from "pdfkit";
 import dotenv from "dotenv";
 import axios from "axios";
 import { formatInTimeZone } from 'date-fns-tz';
 import { es } from 'date-fns/locale';
-
+ */
 
 dotenv.config();
 const colecciones = ['TemperaturaInterna', 'TemperaturaExterna','TemperaturaSensor','HumedadInterna', 'HumedadExterna','HumedadSensor', 'Uv', 'RadiacionSolar', 'Precipitaciones', 'PresionBarometricaRelativa','DireccionViento', 'VelocidadViento', 'HidrogenoSensor', 'LuzSensor'];
@@ -24,7 +29,7 @@ MongoClient.connect(mongoURL)
   })
   .catch((error) => console.error("Error conectando a MongoDB:", error));
 
-export const envioDatosSensores = async (req, res) => {
+  const envioDatosSensores = async (req, res) => {
   try {
     const client = await MongoClient.connect(mongoURL);
     const db = client.db(dbName);
@@ -45,7 +50,7 @@ export const envioDatosSensores = async (req, res) => {
   }
 }
 
-export const recibirDatosSensores = async (req, res) => {
+const recibirDatosSensores = async (req, res) => {
   const data = req.body;
   const currentTime = new Date();
   try {
@@ -63,7 +68,7 @@ export const recibirDatosSensores = async (req, res) => {
   }
 };
 
-export const obtenerDatosAmbientWeather = async (req, res) => {
+const obtenerDatosAmbientWeather = async (req, res) => {
   try {
     const response = await axios.get('https://api.ambientweather.net/v1/devices', {
       params: {
@@ -135,7 +140,7 @@ export const obtenerDatosAmbientWeather = async (req, res) => {
   }
 };
 
-export const listData = async (req, res) => {
+const listData = async (req, res) => {
   const { collectionName } = req.params;
   try {
     const client = await MongoClient.connect(mongoURL);
@@ -171,7 +176,7 @@ export const listData = async (req, res) => {
     res.status(500).json({ message: "Error al obtener los datos", error: error.message });
   }
 }
-export const dataDiaDual = async (req, res) => {
+const dataDiaDual = async (req, res) => {
   const { collectionNameA, collectionNameB } = req.params;
   try {
     const client = await MongoClient.connect(mongoURL);
@@ -224,7 +229,7 @@ export const dataDiaDual = async (req, res) => {
     console.log(error)
   }
 }
-export const dataDia = async (req, res) => {
+const dataDia = async (req, res) => {
   const { collectionName } = req.params;
   try {
     const client = await MongoClient.connect(mongoURL);
@@ -265,7 +270,7 @@ export const dataDia = async (req, res) => {
   }
 }
 
-export const dataSemana = async (req, res) => {
+const dataSemana = async (req, res) => {
   const { collectionName } = req.params;
   try {
     const client = await MongoClient.connect(mongoURL);
@@ -307,7 +312,7 @@ export const dataSemana = async (req, res) => {
     return res.status(500).json({ message: "Error al obtener los datos", error: e.message });
   }
 }
-export const dataMes = async (req, res) => {
+const dataMes = async (req, res) => {
   const { collectionName } = req.params;
   try {
     const client = await MongoClient.connect(mongoURL);
@@ -349,7 +354,7 @@ export const dataMes = async (req, res) => {
     return res.status(500).json({ message: "Error al obtener los datos", error: e.message });
   }
 }
-export const reporteCSV = async (req, res) => {
+const reporteCSV = async (req, res) => {
   const { collectionName } = req.params;
   const { startDate, endDate } = req.query;
 
@@ -399,7 +404,7 @@ export const reporteCSV = async (req, res) => {
     res.status(500).json({ error: "Error al exportar datos" });
   }
 }
-export const reporteXSLM = async (req, res) => {
+const reporteXSLM = async (req, res) => {
   const { collectionName } = req.params;
   const { startDate, endDate } = req.query;
 
@@ -462,7 +467,7 @@ export const reporteXSLM = async (req, res) => {
   }
 
 }
-export const reportePDF = async (req, res) => {
+const reportePDF = async (req, res) => {
   const { collectionName } = req.params;
   const { startDate, endDate } = req.query;
 
@@ -582,4 +587,18 @@ export const reportePDF = async (req, res) => {
     console.error("❌ Error exportando PDF:", error);
     res.status(500).json({ error: "Error al exportar datos" });
   }
+};
+
+module.exports = {
+  envioDatosSensores,
+  recibirDatosSensores,
+  obtenerDatosAmbientWeather,
+  listData,
+  dataDiaDual,
+  dataDia,
+  dataSemana,
+  dataMes,
+  reporteCSV,
+  reporteXSLM,
+  reportePDF
 };
