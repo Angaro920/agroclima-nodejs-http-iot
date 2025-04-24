@@ -50,9 +50,14 @@ const getUser = async (req, res) => {
 // 🟢 LOGOUT
 const logout = async (req, res) => {
   try {
-    res.setHeader("Set-Cookie", "token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict");
-    res.clearCookie("token", { httpOnly: true, secure: false, sameSite: "strict", path: "/" });
-    res.json({ msg: "Sesión cerrada" });
+    
+    res.clearCookie("token", { 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: "None", 
+      path: "/" 
+    });
+    res.status(200).json({ msg: "Sesión cerrada exitosamente" });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Error en el servidor");
