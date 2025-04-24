@@ -1,8 +1,4 @@
-/* import { MongoClient } from "mongodb";
-import { Parser } from "json2csv";
-import ExcelJS from "exceljs";
-import PDFDocument from "pdfkit";
-import moment from "moment"; */
+
 const { MongoClient } = require('mongodb');
 const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
@@ -25,6 +21,26 @@ const connectToMongoDB = async () => {
     throw error;
   }
 };
+
+const registrarAuditoria = async (usuario, accion, detalles = {}) => {
+  try {
+    const client = new MongoClient(mongoURL);
+    await client.connect();
+    const db = client.db(dbName);
+
+    await db.collection(auditCollection).insertOne({
+      usuario,
+      accion,
+      detalles,
+      fecha: new Date(),
+    });
+
+    await client.close();
+  } catch (err) {
+    console.error("❌ Error al registrar auditoría:", err);
+  }
+};
+
 
 // ✅ Listar en JSON (para frontend)
 const listarAuditorias = async (req, res) => {
@@ -150,5 +166,6 @@ const exportarAuditorias = async (req, res) => {
 
 module.exports = {
   listarAuditorias,
-  exportarAuditorias
+  exportarAuditorias,
+  registrarAuditoria
 };

@@ -6,12 +6,6 @@ const { recibirInstrucciones, enviarInstrucciones } = require("../controller/con
 const authMiddleware = require("../middleware/authmiddleware.js");
 
 
-/* import express from "express"
-import { create, deleteUser, list, listID, login, logout, updateUser, getUser } from "../controller/userController.js"
-import { listarAuditorias, exportarAuditorias } from "../controller/auditoriaController.js";
-import { reporteCSV, reporteXSLM, reportePDF, listData, dataDia, dataSemana, dataMes, obtenerDatosAmbientWeather, envioDatosSensores, recibirDatosSensores, dataDiaDual } from "../controller/dataController.js"
-import { recibirInstrucciones, enviarInstrucciones } from "../controller/controlController.js"
-import authMiddleware from "../middleware/authmiddleware.js" */
 const routes = express.Router();
 
 
@@ -33,10 +27,8 @@ routes.post("/addUser", create)
 routes.post("/logout", logout)
 routes.post("/sensores", recibirDatosSensores);
 routes.post("/ambientweather", obtenerDatosAmbientWeather);
-routes.post("/control", recibirInstrucciones);
+routes.post("/control",authMiddleware ,recibirInstrucciones);
 routes.get("/instrucciones", enviarInstrucciones);
-// routes.put("/updateUser/:id", updateUser)
-//routes.delete("/deleteUser/:id", deleteUser)
 routes.get("/audits/:type", authMiddleware, exportarAuditorias);
 routes.post("/addUser", authMiddleware, create);
 routes.put("/updateUser/:id", authMiddleware, updateUser);

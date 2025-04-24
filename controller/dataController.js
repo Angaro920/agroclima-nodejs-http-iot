@@ -18,7 +18,7 @@ const mongoURL = process.env.MONGO_URI || "mongodb://localhost:27017/AgroclimaAi
 const connectToMongoDB = async () => {
   try {
     const client = await MongoClient.connect(mongoURL);
-    console.log("Conectado a MongoDB en DataController");
+    /* console.log("Conectado a MongoDB en DataController"); */
     const db = client.db(dbName);
     return { client, db };
   } catch (error) {
@@ -161,7 +161,7 @@ const listData = async (req, res) => {
           _id: {
             $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time" }
           },
-          promedio: { $avg: "$data" },
+          Promedio: { $avg: "$data" },
         }
       },
       {
@@ -171,9 +171,11 @@ const listData = async (req, res) => {
     let data = await collection.aggregate(pipeline).toArray();
     data = data.map(item => {
       const fecha = item._id
+      const promedio = item.Promedio
       return {
         ...item,
-        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy h:mm a', { locale: es }),
+        Fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy h:mm a', { locale: es }),
+        Promedio: Number(promedio.toFixed(2))
       };
     });
 
@@ -214,7 +216,7 @@ const dataDiaDual = async (req, res) => {
           _id: {
             $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time" }
           },
-          promedio: { $avg: "$data" },
+          Promedio: { $avg: "$data" },
         }
       },
       {
@@ -230,14 +232,14 @@ const dataDiaDual = async (req, res) => {
     dataExterna.forEach((ext, index) => {
       combinedData.push({
         hora: formatInTimeZone(ext._id, 'America/Bogota', 'd MMMM h:mm a', { locale: es }),
-        lugar: 'externa',
-        value: ext.promedio,
+        lugar: 'Externa',
+        value: ext.Promedio,
       });
       if (dataInterna[index]) {
         combinedData.push({
           hora: formatInTimeZone(dataInterna[index]._id, 'America/Bogota', 'dd MMMM h:mm a', { locale: es }),
-          lugar: 'interna',
-          value: dataInterna[index].promedio,
+          lugar: 'Interna',
+          value: dataInterna[index].Promedio,
         });
       }
     });
@@ -270,7 +272,7 @@ const dataDia = async (req, res) => {
           _id: {
             $dateToString: { format: "%Y-%m-%dT%H:00:00Z", date: "$time" }
           },
-          promedio: { $avg: "$data" },
+          Promedio: { $avg: "$data" },
         }
       },
       {
@@ -283,7 +285,7 @@ const dataDia = async (req, res) => {
       const fecha = item._id
       return {
         ...item,
-        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM h:mm a', { locale: es }),
+        Fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM h:mm a', { locale: es }),
       };
     });
     if (data.length === 0) {
@@ -317,7 +319,7 @@ const dataSemana = async (req, res) => {
           _id: {
             $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$time" } }
           },
-          promedio: { $avg: "$data" }
+          Promedio: { $avg: "$data" }
         }
       },
       {
@@ -329,7 +331,7 @@ const dataSemana = async (req, res) => {
       const fecha = item._id
       return {
         ...item,
-        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy', { locale: es }),
+        Fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy', { locale: es }),
       };
     });
     if (data.length === 0) {
@@ -358,7 +360,7 @@ const dataMes = async (req, res) => {
           _id: {
             $dateToString: { format: "%Y-%m-%d", date: { $toDate: "$time" } }
           },
-          promedio: { $avg: "$data" }
+          Promedio: { $avg: "$data" }
         }
       },
       {
@@ -370,7 +372,7 @@ const dataMes = async (req, res) => {
       const fecha = item._id
       return {
         ...item,
-        fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy', { locale: es }),
+        Fecha: formatInTimeZone(fecha, 'America/Bogota', 'dd MMMM yyyy', { locale: es }),
       };
     });
     if (data.length === 0) {
