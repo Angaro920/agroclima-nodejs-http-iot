@@ -22,6 +22,7 @@ const connectToMongoDB = async () => {
   }
 };
 
+
 const registrarAuditoria = async (usuario, accion, detalles = {}) => {
   try {
     const client = new MongoClient(mongoURL);

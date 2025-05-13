@@ -6,6 +6,8 @@ const dotenv = require('dotenv');
 const axios = require('axios');
 const { formatInTimeZone } = require('date-fns-tz');
 const { es } = require('date-fns/locale');
+const { spawn } = require('child_process');
+
 
 
 dotenv.config();
@@ -14,7 +16,76 @@ const colecciones = ['TemperaturaInterna', 'TemperaturaExterna', 'TemperaturaSen
 const dbName = "AgroclimaAi";
 const mongoURL = process.env.MONGO_URI || "mongodb://localhost:27017/AgroclimaAi";
 
-// Función para conectar a MongoDB
+const predictClima = async (req, res) => {
+  const uri = 'mongodb://localhost:27017'; 
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    const db = client.db('AgroclimaAi');
+
+    // Obtener último dato de temperatura
+    const tempCollection = db.collection('TemperaturaInterna');
+    const latestTemp = await tempCollection.find().sort({ time: -1 }).limit(1).toArray();
+    const historicalTemp = await tempCollection.find().sort({ time: -1 }).limit(60).toArray();
+
+    // Obtener último dato de humedad
+    const humCollection = db.collection('HumedadInterna');
+    const latestHum = await humCollection.find().sort({ time: -1 }).limit(1).toArray();
+    const historicalHum = await humCollection.find().sort({ time: -1 }).limit(60).toArray();
+
+    // Asegurar que haya datos
+    if (!latestTemp[0] || !latestHum[0]) {
+      return res.status(500).json({ error: 'No hay suficientes datos' });
+    }
+
+    const inputPayload = {
+      current_data: latestTemp[0].data, // temperatura actual
+      current_time: latestTemp[0].time.toISOString(),
+      historical_data: historicalHum.map(d => ({
+        data: d.data,
+        time: d.time
+      }))
+    };
+
+    const py = spawn('/home/angaro/Documentos/IA/bin/python', ['/home/angaro/Documentos/IA/predict.py']);
+
+    let output = '';
+    py.stdin.write(JSON.stringify(inputPayload));
+    py.stdin.end();
+
+    py.stdout.on('data', data => {
+      output += data.toString();
+    });
+
+    py.stderr.on('data', data => {
+      console.error('Error Python:', data.toString());
+    });
+
+    py.on('close', code => {
+      if (code !== 0) {
+        return res.status(500).send('Error al ejecutar predicción');
+      }
+
+      try {
+        const result = JSON.parse(output);
+        res.json(result);
+      } catch (err) {
+        console.error('Error al parsear JSON:', err);
+        res.status(500).send('Respuesta no válida del modelo');
+      }
+    });
+  } catch (err) {
+    console.error('Error del servidor:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    await client.close();
+  }
+};
+
+module.exports = { predictClima };
+
+
 const connectToMongoDB = async () => {
   try {
     const client = await MongoClient.connect(mongoURL);
@@ -231,7 +302,7 @@ const dataDiaDual = async (req, res) => {
 
     dataExterna.forEach((ext, index) => {
       combinedData.push({
-        hora: formatInTimeZone(ext._id, 'America/Bogota', 'd MMMM h:mm a', { locale: es }),
+        hora: formatInTimeZone(ext._id, 'America/Bogota', 'dd MMMM h:mm a', { locale: es }),
         lugar: 'Externa',
         value: ext.Promedio,
       });
@@ -640,5 +711,6 @@ module.exports = {
   dataMes,
   reporteCSV,
   reporteXSLM,
-  reportePDF
+  reportePDF,
+  predictClima
 };
