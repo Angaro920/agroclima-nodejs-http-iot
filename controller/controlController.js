@@ -6,7 +6,7 @@ let currentInstruction = {
 };
 
 const recibirInstrucciones = async (req, res) => {
-    // 🔍 Asegúrate de que userName llegue correctamente
+    // Asegúrate de que userName llegue correctamente
     console.log("👤 Usuario recibido en controlador:", req.user);
 
     const { device, state } = req.body;
@@ -20,7 +20,7 @@ const recibirInstrucciones = async (req, res) => {
 
     // ✅ Auditoría con nombre del usuario autenticado
     await registrarAuditoria(
-        req.user?.userName || "Desconocido",
+        req.user?.name || "Desconocido",
         "Recibir Instrucción",
         { device, state }
     );

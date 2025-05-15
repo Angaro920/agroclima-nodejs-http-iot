@@ -10,9 +10,9 @@ import { registrarAuditoria } from '../utils/auditLogger.js';
  */
 // 🟢 LOGIN
 const login = async (req, res) => {
-  const { userName, password } = req.body;
+  const { documento, password } = req.body;
   try {
-    const user = await User.findOne({ userName });
+    const user = await User.findOne({ documento });
     if (!user) return res.status(400).json({ msg: 'Credenciales inválidas' });
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -23,7 +23,7 @@ const login = async (req, res) => {
       if (err) throw err;
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'None', path: '/' });
 
-      registrarAuditoria(user.userName, "Inicio de sesión").catch(err =>
+      registrarAuditoria(user.name, "Inicio de sesión").catch(err =>
         console.error("Error auditando inicio de sesión:", err)
       );
 
@@ -67,16 +67,16 @@ const logout = async (req, res) => {
 // 🟢 CREAR USUARIO
 const create = async (req, res) => {
   try {
-    const { userName, password } = req.body;
-    const userExist = await User.findOne({ userName });
+    const { documento, password } = req.body;
+    const userExist = await User.findOne({ documento });
     if (userExist) return res.status(400).json({ message: "Usuario ya existe" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ ...req.body, password: hashedPassword });
     const savedData = await newUser.save();
 
-    await registrarAuditoria(req.user?.userName || 'Sistema', "Creación de usuario", {
-      nuevoUsuario: newUser.userName,
+    await registrarAuditoria(req.user?.name || 'Sistema', "Creación de usuario", {
+      nuevoUsuario: newUser.name,
       tag: newUser.tag
     });
 
@@ -129,9 +129,9 @@ const updateUser = async (req, res) => {
 
     const updatedData = await User.findByIdAndUpdate(id, req.body, { new: true });
 
-    const usuarioAutenticado = req.user?.userName || 'Sistema';
+    const usuarioAutenticado = req.user?.name || 'Sistema';
     await registrarAuditoria(usuarioAutenticado, "Actualización de usuario", {
-      usuarioActualizado: updatedData.userName,
+      usuarioActualizado: updatedData.name,
       cambios: req.body
     });
 
@@ -149,10 +149,10 @@ const deleteUser = async (req, res) => {
     const userExist = await User.findById(id);
     if (!userExist) return res.status(404).json({ message: "No hay datos encontrados" });
 
-    const usuarioAutenticado = req.user?.userName || 'Sistema';
+    const usuarioAutenticado = req.user?.name || 'Sistema';
 
     await registrarAuditoria(usuarioAutenticado, "Eliminación de usuario", {
-      usuarioEliminado: userExist.userName,
+      usuarioEliminado: userExist.name,
       idEliminado: id
     });
 

@@ -39,7 +39,7 @@ const recoverPasswordByDocument = async (req, res) => {
 
     // Registrar auditoría
     await registrarAuditoria("Sistema", "Recuperación de contraseña", {
-      usuario: user.userName,
+      usuario: user.name,
       documento: user.documento,
     });
 
